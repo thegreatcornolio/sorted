@@ -1,10 +1,5 @@
-import { Suspense } from "react";
-import { TranscriptDesk } from "@/components/TranscriptDesk";
+import { redirect } from "next/navigation";
 
 export default function NadClinicPage() {
-  return (
-    <Suspense fallback={<p className="empty">Opening the transcript desk…</p>}>
-      <TranscriptDesk />
-    </Suspense>
-  );
+  redirect("/");
 }

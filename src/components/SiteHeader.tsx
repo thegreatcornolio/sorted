@@ -17,7 +17,7 @@ export function SiteHeader({
         <small>Customer intelligence</small>
       </Link>
       <nav className="site-nav" aria-label="Demos">
-        <Link href="/nadclinic" aria-current={current === "desk" ? "page" : undefined}>
+        <Link href="/" aria-current={current === "desk" ? "page" : undefined}>
           Transcript desk
         </Link>
         <Link href="/scoring" aria-current={current === "scoring" ? "page" : undefined}>

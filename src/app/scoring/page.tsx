@@ -77,7 +77,7 @@ export default function ScoringPage() {
           Example: a logistics accounts payable manager says the statement arrived too late to pay, then credit control sent a demand for payment. That call scores at the bottom of NPS and CSAT. Opening it shows the case was escalated to the customer retentions team to call, apologize, and offer a 1% rebate on the next bill.
         </p>
         <p>
-          <Link href="/nadclinic" className="card-go">
+          <Link href="/" className="card-go">
             Watch it on the transcript desk
           </Link>
         </p>

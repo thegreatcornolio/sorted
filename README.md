@@ -9,8 +9,8 @@ npm install
 npm run dev
 ```
 
-- Home: http://localhost:3000
-- Transcript desk: http://localhost:3000/nadclinic
+- Transcript desk: http://localhost:3000
+- Same desk (redirect): http://localhost:3000/nadclinic
 - Score model: http://localhost:3000/scoring
 
 `npm run check` confirms every score quotes a customer line, and that negative NPS or CSAT values trigger a distinct next best action.
