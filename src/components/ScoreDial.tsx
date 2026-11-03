@@ -16,7 +16,7 @@ export function ScoreDial({
   value: number | null;
   min: number;
   max: number;
-  caption: string;
+  caption?: string;
   digits?: number;
   signed?: boolean;
 }) {
@@ -46,7 +46,7 @@ export function ScoreDial({
           {min}–{max}
         </text>
       </svg>
-      <p className="dial-caption">{caption}</p>
+      {caption ? <p className="dial-caption">{caption}</p> : null}
     </article>
   );
 }

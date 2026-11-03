@@ -23,7 +23,7 @@ export function TranscriptDesk() {
   const openedRequest = useRef<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const rows = useMemo(() => allRows(), []);
-  const { count, replay, epoch } = useIngest(rows.length);
+  const { count, epoch } = useIngest(rows.length);
   const visible = rows.slice(0, count);
   const newestId = visible.at(-1)?.transcript.id;
   const csatValues = visible.map((row) => row.analysis.csat);
@@ -34,6 +34,10 @@ export function TranscriptDesk() {
   }));
   const npsNow = npsPoints.at(-1)?.value ?? null;
   const ingesting = count < rows.length;
+  const reasonFilter = params.get("reason");
+  const listed = reasonFilter
+    ? visible.filter((row) => row.analysis.npsBand === "detractor" && row.analysis.theme === reasonFilter)
+    : visible;
   const selected = rows.find((row) => row.transcript.id === selectedId) ?? null;
 
   useEffect(() => {
@@ -70,12 +74,9 @@ export function TranscriptDesk() {
           <span className={ingesting ? "dot is-on" : "dot"} aria-hidden="true" />
           {count === 0 ? "Waiting for the first interaction" : ingesting ? `Ingesting ${count} of ${rows.length}` : `Queue ingested · ${rows.length}`}
         </span>
-        <button type="button" className="text-button" onClick={replay}>
-          Replay
-        </button>
       </SiteHeader>
       <main className="desk">
-        <div className="wrap">
+        <div className={reasonFilter ? "wrap is-filtered" : "wrap"}>
           <div className="desk-intro">
             <p className="kicker">Voice · email · WhatsApp</p>
             <h1>Interactions</h1>
@@ -124,16 +125,30 @@ export function TranscriptDesk() {
               )}
             </section>
           </div>
-          <section className="panel" aria-label="Analyzed interactions">
+          <section
+            className={reasonFilter ? "panel reason-results" : "panel"}
+            aria-label={reasonFilter ? "Detractors for this reason" : "Analyzed interactions"}
+          >
             <div className="panel-head">
-              <h2>Each interaction</h2>
-              <p data-testid="kpi-count">
-                {count}/{rows.length} · newest first
+              <h2>{reasonFilter ?? "Each interaction"}</h2>
+              <p data-testid={reasonFilter ? "reason-filter" : "kpi-count"}>
+                {reasonFilter ? (
+                  <>
+                    {listed.length} {listed.length === 1 ? "detractor" : "detractors"} ·{" "}
+                    <Link href="/interactions">All interactions</Link>
+                  </>
+                ) : (
+                  `${count}/${rows.length} · newest first`
+                )}
               </p>
             </div>
             <div className="feed">
-              {visible.length === 0 ? <p className="empty">Interactions are about to arrive.</p> : null}
-              {visible
+              {listed.length === 0 ? (
+                <p className="empty">
+                  {reasonFilter ? "No detractors for this reason have arrived yet." : "Interactions are about to arrive."}
+                </p>
+              ) : null}
+              {listed
                 .slice()
                 .reverse()
                 .map((row) => {
@@ -165,7 +180,7 @@ export function TranscriptDesk() {
                         {row.analysis.nba ? <span className="tag triggered">{row.analysis.nba.statusLabel}</span> : null}
                       </span>
                       <span className="reason-copy">{row.analysis.reason}</span>
-                      <span className="quote-line">
+                      <span className={reasonFilter ? "quote-line is-open" : "quote-line"}>
                         {row.analysis.nba ? row.analysis.nba.summary : "No next best action. The score is not negative."}
                       </span>
                     </button>

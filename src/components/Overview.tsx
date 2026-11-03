@@ -10,7 +10,7 @@ import { SiteHeader } from "./SiteHeader";
 
 export function Overview() {
   const rows = useMemo(() => allRows(), []);
-  const { count, replay } = useIngest(rows.length);
+  const { count } = useIngest(rows.length);
   const visible = rows.slice(0, count);
   const promoters = visible.filter((row) => row.analysis.npsBand === "promoter").length;
   const passives = visible.filter((row) => row.analysis.npsBand === "passive").length;
@@ -38,19 +38,12 @@ export function Overview() {
           <span className={ingesting ? "dot is-on" : "dot"} aria-hidden="true" />
           {count === 0 ? "Waiting for the first interaction" : ingesting ? `Ingesting ${count} of ${rows.length}` : `Queue ingested · ${rows.length}`}
         </span>
-        <button type="button" className="text-button" onClick={replay}>
-          Replay
-        </button>
       </SiteHeader>
       <main className="desk">
         <div className="wrap">
           <div className="desk-intro">
             <p className="kicker">NPS and CSAT · customer interactions support</p>
             <h1>Customer interactions support</h1>
-            <p>
-              NPS is the share of promoters minus the share of detractors, from −100 to +100. Passives are left out of that subtraction. CSAT stays on its own.{" "}
-              <Link href="/interactions">Watch the interactions arrive</Link>.
-            </p>
           </div>
           <div className="summary-grid">
             <section className="panel summary-card" aria-label="NPS">
@@ -61,7 +54,6 @@ export function Overview() {
                 max={100}
                 digits={0}
                 signed
-                caption="Promoters minus detractors. Passives are counted in the base, and they are not subtracted."
               />
               <p className="band-counts" data-testid="nps-bands">
                 <span>
@@ -87,7 +79,6 @@ export function Overview() {
                 value={avgCsat}
                 min={1}
                 max={5}
-                caption="Average score from 1 to 5. Its own dial, separate from NPS."
               />
               <p className="meta dial-note" data-testid="kpi-csat">
                 {avgCsat === null ? "CSAT appears with the first interaction." : `Average ${avgCsat.toFixed(1)}`}
@@ -104,11 +95,18 @@ export function Overview() {
             ) : (
               <ol className="reason-list">
                 {top.map((item) => (
-                  <li key={item.label} data-testid="top-reason">
-                    <strong>{item.label}</strong>
-                    <span>
-                      {item.count} {item.count === 1 ? "detractor" : "detractors"}
-                    </span>
+                  <li key={item.label}>
+                    <Link
+                      href={{ pathname: "/interactions", query: { reason: item.label } }}
+                      data-testid="top-reason"
+                      data-reason={item.label}
+                    >
+                      <strong>{item.label}</strong>
+                      <span>
+                        {item.count} {item.count === 1 ? "detractor" : "detractors"}
+                        <span aria-hidden="true"> →</span>
+                      </span>
+                    </Link>
                   </li>
                 ))}
               </ol>

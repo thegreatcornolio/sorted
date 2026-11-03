@@ -65,6 +65,9 @@ if (!harper) {
     failures.push("Harper Stores quote does not mention the payment demand");
   }
   if (harper.transcript.channel !== "voice") failures.push("Harper Stores late-bill case should stay a voice interaction");
+  if (analysis.theme !== "A bill, fee, or charge that should not be there") {
+    failures.push("Harper Stores is not grouped with the late-bill reason");
+  }
 }
 
 const homeWifi = transcripts.some((item) =>
