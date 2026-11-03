@@ -44,6 +44,7 @@ export type Analysis = {
   npsBand: NpsBand;
   csatBand: CsatBand;
   reason: string;
+  theme: string | null;
   quotes: string[];
   nba: NextBestAction | null;
 };

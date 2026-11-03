@@ -12,8 +12,10 @@ export default function ScoringPage() {
           The desk reads interactions that already exist — voice, email, and WhatsApp — and quotes the customer lines that moved the score. NPS and CSAT each have their own dial and line. The dial colour moves from red through amber to green as the running average rises.
         </p>
 
-        <h2>NPS, 0 to 10</h2>
-        <p>One number per interaction, not a company-wide index. The chart plots that number in arrival order and a running average.</p>
+        <h2>NPS, −100 to +100</h2>
+        <p>
+          Each interaction is still scored 0 to 10. Promoters are 9–10, passives are 7–8, and detractors are 0–6. The number on the overview is not an average of those scores. It is the share of promoters minus the share of detractors. Passives stay in the count, and they are not part of the subtraction.
+        </p>
         <table className="table">
           <thead>
             <tr>
@@ -77,8 +79,8 @@ export default function ScoringPage() {
           Example: Harper Stores says the bill arrived too late to pay, then the payments team sent a demand for payment. That interaction scores at the bottom of NPS and CSAT. Opening it shows the case was already escalated to the customer retentions team to apologize and offer a 1% rebate on the next bill.
         </p>
         <p>
-          <Link href="/" className="card-go">
-            Watch it in customer interactions support
+          <Link href="/interactions/?call=gl-1004" className="card-go">
+            See Harper Stores on the interaction list
           </Link>
         </p>
       </article>

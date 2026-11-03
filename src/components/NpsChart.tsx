@@ -10,22 +10,30 @@ export function ScoreChart({
   min,
   max,
   label,
+  ticks,
+  showRunningAverage = true,
+  note = "Each interaction · dashed line is the running average",
 }: {
   points: Point[];
   average: number | null;
   min: number;
   max: number;
   label: string;
+  ticks?: number[];
+  showRunningAverage?: boolean;
+  note?: string;
 }) {
-  const innerW = WIDTH - PAD.l - PAD.r;
+  const tickValues = ticks ?? (label === "CSAT" ? [1, 2, 3, 4, 5] : [0, 2, 4, 6, 8, 10]);
+  const padL = Math.min(...tickValues) < 0 ? 46 : PAD.l;
+  const innerW = WIDTH - padL - PAD.r;
   const yFor = (value: number) => {
     const inner = HEIGHT - PAD.t - PAD.b;
     const clamped = Math.min(max, Math.max(min, value));
     return PAD.t + ((max - clamped) / (max - min)) * inner;
   };
   const xFor = (index: number) => {
-    if (points.length <= 1) return PAD.l + innerW / 2;
-    return PAD.l + (index / (points.length - 1)) * innerW;
+    if (points.length <= 1) return padL + innerW / 2;
+    return padL + (index / (points.length - 1)) * innerW;
   };
   const line = points.map((point, index) => `${xFor(index)},${yFor(point.value)}`).join(" ");
   let running = 0;
@@ -35,8 +43,6 @@ export function ScoreChart({
       return `${xFor(index)},${yFor(running / (index + 1))}`;
     })
     .join(" ");
-  const ticks = label === "CSAT" ? [1, 2, 3, 4, 5] : [0, 2, 4, 6, 8, 10];
-
   return (
     <div className="chart-wrap">
       <svg
@@ -48,19 +54,17 @@ export function ScoreChart({
             : `${label} by arriving interaction. Average ${average?.toFixed(1) ?? "unavailable"}.`
         }
       >
-        {ticks.map((tick) => (
+        {tickValues.map((tick) => (
           <g key={tick}>
-            <line x1={PAD.l} x2={WIDTH - PAD.r} y1={yFor(tick)} y2={yFor(tick)} stroke="#e4ebf1" strokeWidth="1" />
+            <line x1={padL} x2={WIDTH - PAD.r} y1={yFor(tick)} y2={yFor(tick)} stroke="#e4ebf1" strokeWidth="1" />
             <text x={4} y={yFor(tick) + 4} fill="#5c6874" fontSize="11" fontFamily="ui-monospace, monospace">
               {tick}
             </text>
           </g>
         ))}
-        {points.length > 1 ? (
-          <>
-            <polyline fill="none" stroke="#9aa8b5" strokeWidth="2" points={line} />
-            <polyline fill="none" stroke="#0b121a" strokeWidth="2" strokeDasharray="5 4" points={averageLine} />
-          </>
+        {points.length > 1 ? <polyline fill="none" stroke="#9aa8b5" strokeWidth="2" points={line} /> : null}
+        {showRunningAverage && points.length > 1 ? (
+          <polyline fill="none" stroke="#0b121a" strokeWidth="2" strokeDasharray="5 4" points={averageLine} />
         ) : null}
         {points.map((point, index) => {
           const span = max - min;
@@ -73,8 +77,8 @@ export function ScoreChart({
             </circle>
           );
         })}
-        <text x={PAD.l} y={HEIGHT - 6} fill="#5c6874" fontSize="11">
-          Each interaction · dashed line is the running average
+        <text x={padL} y={HEIGHT - 6} fill="#5c6874" fontSize="11">
+          {note}
         </text>
       </svg>
     </div>

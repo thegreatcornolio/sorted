@@ -1,4 +1,4 @@
-import { analyzeTranscript, isNegativeScore } from "../src/lib/analyze";
+import { analyzeTranscript, companyNps, isNegativeScore } from "../src/lib/analyze";
 import { transcripts } from "../src/lib/transcripts";
 
 const analyses = transcripts.map((transcript) => ({
@@ -80,6 +80,13 @@ for (const item of transcripts) {
     channels[item.channel] += 1;
   }
 }
+const zero = companyNps([10, 7, 1]);
+if (zero !== 0) failures.push(`NPS should ignore the passive and score 0, got ${zero}`);
+const plus = companyNps([10, 9, 8]);
+if (plus !== 67) failures.push(`NPS should be 67 with two promoters and one passive, got ${plus}`);
+const minus = companyNps([1, 2]);
+if (minus !== -100) failures.push(`NPS should be -100 when everyone is a detractor, got ${minus}`);
+
 if (channels.voice < 25 || channels.email < 25 || channels.whatsapp < 25) {
   failures.push(`expected a real split across voice, email, and WhatsApp, got ${channels.voice}/${channels.email}/${channels.whatsapp}`);
 }

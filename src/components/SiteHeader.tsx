@@ -5,7 +5,7 @@ export function SiteHeader({
   current,
   children,
 }: {
-  current?: "desk" | "scoring";
+  current?: "overview" | "interactions" | "scoring";
   children?: ReactNode;
 }) {
   return (
@@ -17,8 +17,11 @@ export function SiteHeader({
         <small>Customer support</small>
       </Link>
       <nav className="site-nav" aria-label="Demos">
-        <Link href="/" aria-current={current === "desk" ? "page" : undefined}>
-          Customer interactions
+        <Link href="/" aria-current={current === "overview" ? "page" : undefined}>
+          Overview
+        </Link>
+        <Link href="/interactions" aria-current={current === "interactions" ? "page" : undefined}>
+          Interactions
         </Link>
         <Link href="/scoring" aria-current={current === "scoring" ? "page" : undefined}>
           Score model

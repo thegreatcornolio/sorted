@@ -9,17 +9,22 @@ export function ScoreDial({
   min,
   max,
   caption,
+  digits = 1,
+  signed = false,
 }: {
   label: string;
   value: number | null;
   min: number;
   max: number;
   caption: string;
+  digits?: number;
+  signed?: boolean;
 }) {
   const amount = value === null ? 0 : (value - min) / (max - min);
   const color = value === null ? "#c5ced6" : gaugeColor(amount);
   const dash = `${Math.max(0, Math.min(1, amount)) * ARC} ${ARC}`;
-  const shown = value === null ? "—" : value.toFixed(1);
+  const shown =
+    value === null ? "—" : `${signed && value > 0 ? "+" : ""}${value.toFixed(digits)}`;
 
   return (
     <article className="dial-card" aria-label={value === null ? `${label} dial waiting for interactions` : `${label} ${shown} out of ${max}`}>

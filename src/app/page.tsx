@@ -1,10 +1,5 @@
-import { Suspense } from "react";
-import { TranscriptDesk } from "@/components/TranscriptDesk";
+import { Overview } from "@/components/Overview";
 
 export default function HomePage() {
-  return (
-    <Suspense fallback={<p className="empty">Opening customer interactions…</p>}>
-      <TranscriptDesk />
-    </Suspense>
-  );
+  return <Overview />;
 }

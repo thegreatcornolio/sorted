@@ -343,6 +343,35 @@ const STRONG = [
 
 const CALM = [/appreciate the update/i, /that all makes sense/i];
 
+const THEME: Record<string, string> = {
+  late_bill_demand: "A bill, fee, or charge that should not be there",
+  surprise_fee: "A bill, fee, or charge that should not be there",
+  double_charge: "A bill, fee, or charge that should not be there",
+  cancelled_still_billed: "A bill, fee, or charge that should not be there",
+  late_delivery: "Delivery was late, broken, or the wrong item",
+  damaged_item: "Delivery was late, broken, or the wrong item",
+  wrong_item: "Delivery was late, broken, or the wrong item",
+  missing_refund: "A refund that is missing or short",
+  short_refund: "A refund that is missing or short",
+  long_wait: "A long wait, a missed callback, or being passed around",
+  missed_callback: "A long wait, a missed callback, or being passed around",
+  passed_around: "A long wait, a missed callback, or being passed around",
+  account_locked: "The account was locked, closed, or a complaint was ignored",
+  closed_no_warning: "The account was locked, closed, or a complaint was ignored",
+  complaint_ignored: "The account was locked, closed, or a complaint was ignored",
+};
+
+export function companyNps(scores: number[]): number | null {
+  if (!scores.length) return null;
+  let promoters = 0;
+  let detractors = 0;
+  for (const score of scores) {
+    if (score >= 9) promoters += 1;
+    else if (score <= 6) detractors += 1;
+  }
+  return Math.round(((promoters - detractors) / scores.length) * 100);
+}
+
 function customerLines(transcript: Transcript): string[] {
   return transcript.lines.filter((line) => line.speaker === "Customer").map((line) => line.text);
 }
@@ -416,6 +445,7 @@ export function analyzeTranscript(transcript: Transcript): Analysis {
       npsBand: npsBand(issue.nps),
       csatBand: csatBand(issue.csat),
       reason: issue.reason(quotes),
+      theme: THEME[issue.id] ?? null,
       quotes,
       nba: actionFrom(issue, transcript.id),
     };
@@ -432,6 +462,7 @@ export function analyzeTranscript(transcript: Transcript): Analysis {
       npsBand: "passive",
       csatBand: "neutral",
       reason: `NPS 7 (passive) and CSAT 3 (neutral). The interaction was handled, and the customer still raised ${mild.label}: “${quotes[0] ?? ""}”`,
+      theme: null,
       quotes,
       nba: null,
     };
@@ -449,6 +480,7 @@ export function analyzeTranscript(transcript: Transcript): Analysis {
       npsBand: npsBand(nps),
       csatBand: csatBand(csat),
       reason: `NPS ${nps} (promoter) and CSAT ${csat}. The customer described a clean result: “${strongQuotes[0]}”`,
+      theme: null,
       quotes: strongQuotes.slice(0, 2),
       nba: null,
     };
@@ -464,6 +496,7 @@ export function analyzeTranscript(transcript: Transcript): Analysis {
     npsBand: "passive",
     csatBand: "positive",
     reason: `NPS 8 (passive) and CSAT 4 (positive). The tone is fine, without a strong recommendation: “${quotes[0]}”`,
+    theme: null,
     quotes,
     nba: null,
   };
