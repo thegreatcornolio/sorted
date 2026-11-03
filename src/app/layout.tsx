@@ -10,9 +10,9 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "SORTED.AI · Fiber transcript desk",
+  title: "SORTED.AI · Customer interactions support",
   description:
-    "Live analysis of business-fiber call transcripts: sentiment, NPS, CSAT, and triggered next best actions.",
+    "NPS and CSAT for customer service interactions across voice, email, and WhatsApp, with a next best action already triggered on negative scores.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

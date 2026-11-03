@@ -1,6 +1,11 @@
 import { sentimentLabel } from "@/lib/analyze";
-import type { Analysis } from "@/lib/types";
-import type { Transcript } from "@/lib/types";
+import type { Analysis, Channel, Transcript } from "@/lib/types";
+
+function channelLabel(channel: Channel): string {
+  if (channel === "email") return "Email";
+  if (channel === "whatsapp") return "WhatsApp";
+  return "Voice";
+}
 
 function highlight(text: string, quotes: string[]) {
   const quote = quotes.find((candidate) => text.includes(candidate));
@@ -37,7 +42,7 @@ export function CallDetail({
         <div className="sheet-top">
           <div>
             <p className="eyebrow">
-              {transcript.queue} · {transcript.callTime} · {transcript.duration}
+              {channelLabel(transcript.channel)} · {transcript.queue} · {transcript.callTime} · {transcript.duration}
             </p>
             <h2 id="call-title">{transcript.company}</h2>
             <p className="meta">
@@ -112,9 +117,9 @@ export function CallDetail({
         </section>
 
         <section className="transcript">
-          <h3>Transcript</h3>
+          <h3>Interaction</h3>
           <p className="meta">
-            Excerpt from the customer, then the full call. Highlighted lines are the ones the score quotes. Audio is not transcribed here — this text was already produced.
+            {channelLabel(transcript.channel)} exchange. Highlighted lines are the customer words the score quotes. This text was already produced.
           </p>
           <div className={`tag ${tone}`} style={{ margin: "8px 0 12px" }}>
             {transcript.topic}

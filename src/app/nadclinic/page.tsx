@@ -3,7 +3,7 @@ import { TranscriptDesk } from "@/components/TranscriptDesk";
 
 export default function NadClinicPage() {
   return (
-    <Suspense fallback={<p className="empty">Opening the transcript desk…</p>}>
+    <Suspense fallback={<p className="empty">Opening customer interactions…</p>}>
       <TranscriptDesk />
     </Suspense>
   );

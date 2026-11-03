@@ -4,8 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { analyzeTranscript, sentimentLabel } from "@/lib/analyze";
 import { transcripts } from "@/lib/transcripts";
-import type { Analysis } from "@/lib/types";
-import type { Transcript } from "@/lib/types";
+import type { Analysis, Channel, Transcript } from "@/lib/types";
 import { CallDetail } from "./CallDetail";
 import { ScoreChart } from "./NpsChart";
 import { ScoreDial } from "./ScoreDial";
@@ -14,6 +13,12 @@ import { SiteHeader } from "./SiteHeader";
 type Row = { transcript: Transcript; analysis: Analysis; order: number };
 
 const STEP_MS = 3000;
+
+function channelLabel(channel: Channel): string {
+  if (channel === "email") return "Email";
+  if (channel === "whatsapp") return "WhatsApp";
+  return "Voice";
+}
 
 export function TranscriptDesk() {
   const params = useSearchParams();
@@ -84,6 +89,10 @@ export function TranscriptDesk() {
   const avg = (values: number[]) => (values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null);
   const avgNps = avg(npsValues);
   const avgCsat = avg(csatValues);
+  const channelCount = (channel: Channel) => visible.filter((row) => row.transcript.channel === channel).length;
+  const voiceCount = channelCount("voice");
+  const emailCount = channelCount("email");
+  const whatsappCount = channelCount("whatsapp");
   const promoters = visible.filter((row) => row.analysis.npsBand === "promoter").length;
   const passives = visible.filter((row) => row.analysis.npsBand === "passive").length;
   const detractors = visible.filter((row) => row.analysis.npsBand === "detractor").length;
@@ -96,7 +105,7 @@ export function TranscriptDesk() {
         <span className="live-pill">
           <span className={ingesting ? "dot is-on" : "dot"} aria-hidden="true" />
           {count === 0
-            ? "Waiting for the first transcript"
+            ? "Waiting for the first interaction"
             : ingesting
               ? `Ingesting ${count} of ${rows.length}`
               : `Queue ingested · ${rows.length}`}
@@ -108,16 +117,25 @@ export function TranscriptDesk() {
       <main className="desk">
         <div className="wrap">
           <div className="desk-intro">
-            <p className="kicker">Gridline Business Fiber · sales and support</p>
-            <h1>Transcript desk</h1>
+            <p className="kicker">NPS and CSAT · customer interactions support</p>
+            <h1>Customer interactions support</h1>
             <p>
-              This morning&apos;s call transcripts arrive one at a time, a few seconds apart. Each one is scored for sentiment, NPS, and CSAT. A negative NPS or CSAT triggers a next best action — the action is already assigned, not merely suggested.
+              Voice, email, and WhatsApp arrive one at a time, a few seconds apart. Each one is scored for NPS and CSAT. A negative score triggers a next best action — the action is already assigned, not merely suggested.
             </p>
           </div>
 
           <p className="status-strip">
             <span>
-              Transcripts <strong data-testid="kpi-count">{count}/{rows.length}</strong>
+              Interactions <strong data-testid="kpi-count">{count}/{rows.length}</strong>
+            </span>
+            <span>
+              Voice <strong data-testid="kpi-voice">{voiceCount}</strong>
+            </span>
+            <span>
+              Email <strong data-testid="kpi-email">{emailCount}</strong>
+            </span>
+            <span>
+              WhatsApp <strong data-testid="kpi-whatsapp">{whatsappCount}</strong>
             </span>
             <span>
               Actions triggered <strong data-testid="kpi-actions">{actions.length}</strong>
@@ -131,11 +149,11 @@ export function TranscriptDesk() {
               <ScoreDial label="NPS" value={avgNps} min={0} max={10} caption="Running average · 0 to 10. Low is red, high is green." />
               <div className="panel">
                 <div className="panel-head">
-                  <h2>NPS as calls arrive</h2>
+                  <h2>NPS as interactions arrive</h2>
                   <p data-testid="kpi-nps">{avgNps === null ? "Waiting" : `Average ${avgNps.toFixed(1)}`}</p>
                 </div>
                 {visible.length === 0 ? (
-                  <p className="empty" style={{ padding: "16px" }}>The NPS line starts when the first transcript lands.</p>
+                  <p className="empty" style={{ padding: "16px" }}>The NPS line starts when the first interaction lands.</p>
                 ) : (
                   <ScoreChart
                     label="NPS"
@@ -151,11 +169,11 @@ export function TranscriptDesk() {
               <ScoreDial label="CSAT" value={avgCsat} min={1} max={5} caption="Running average · 1 to 5. Its own dial, separate from NPS." />
               <div className="panel">
                 <div className="panel-head">
-                  <h2>CSAT as calls arrive</h2>
+                  <h2>CSAT as interactions arrive</h2>
                   <p data-testid="kpi-csat">{avgCsat === null ? "Waiting" : `Average ${avgCsat.toFixed(1)}`}</p>
                 </div>
                 {visible.length === 0 ? (
-                  <p className="empty" style={{ padding: "16px" }}>The CSAT line starts when the first transcript lands.</p>
+                  <p className="empty" style={{ padding: "16px" }}>The CSAT line starts when the first interaction lands.</p>
                 ) : (
                   <ScoreChart
                     label="CSAT"
@@ -178,13 +196,13 @@ export function TranscriptDesk() {
 
           <div className="desk-grid">
             <div>
-              <section className="panel" aria-label="Analyzed calls">
+              <section className="panel" aria-label="Analyzed interactions">
                 <div className="panel-head">
-                  <h2>Analyzed calls</h2>
+                  <h2>Analyzed interactions</h2>
                   <p>Newest first</p>
                 </div>
                 <div className="feed">
-                  {visible.length === 0 ? <p className="empty">The queue is about to start.</p> : null}
+                  {visible.length === 0 ? <p className="empty">Interactions are about to arrive.</p> : null}
                   {visible
                     .slice()
                     .reverse()
@@ -216,11 +234,13 @@ export function TranscriptDesk() {
                       className="action-hit"
                       data-testid="action-card"
                       data-company={row.transcript.company}
+                      data-channel={row.transcript.channel}
                       onClick={() => setSelectedId(row.transcript.id)}
                     >
                       <strong>{row.transcript.company}</strong>
-                      <span className="meta">{row.transcript.topic}</span>
+                      <span className="meta">{channelLabel(row.transcript.channel)} · {row.transcript.topic}</span>
                       <span className="row-tags">
+                        <span className={`tag ${row.transcript.channel}`}>{channelLabel(row.transcript.channel)}</span>
                         <span className="tag neg">Negative</span>
                         <span className="tag score-pair">NPS {row.analysis.nps}</span>
                         <span className="tag score-pair">CSAT {row.analysis.csat}</span>
@@ -255,6 +275,7 @@ function FeedButton({ row, fresh, onOpen }: { row: Row; fresh: boolean; onOpen: 
       className={fresh ? "feed-hit is-new" : "feed-hit"}
       onClick={onOpen}
       data-company={row.transcript.company}
+      data-channel={row.transcript.channel}
     >
       <strong>{row.transcript.company}</strong>
       <span className="meta">
@@ -262,6 +283,7 @@ function FeedButton({ row, fresh, onOpen }: { row: Row; fresh: boolean; onOpen: 
       </span>
       <span className="meta">{row.transcript.topic}</span>
       <span className="score-lines">
+        <span className={`tag ${row.transcript.channel}`} data-testid="channel-tag">{channelLabel(row.transcript.channel)}</span>
         <span className={`tag ${tone}`}>{sentimentLabel(row.analysis.sentiment)}</span>
         <span className="score-line">NPS {row.analysis.nps} · {row.analysis.npsBand}</span>
         <span className="score-line">CSAT {row.analysis.csat} · {row.analysis.csatBand}</span>

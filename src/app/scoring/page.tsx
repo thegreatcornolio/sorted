@@ -7,13 +7,13 @@ export default function ScoringPage() {
       <SiteHeader current="scoring" />
       <article className="article">
         <p className="kicker">Score model</p>
-        <h1>How a transcript becomes a score and an action</h1>
+        <h1>How an interaction becomes a score and an action</h1>
         <p className="muted">
-          The desk does not transcribe audio. It reads a transcript that already exists and quotes the customer lines that moved the score. NPS and CSAT each have their own dial and line. The dial colour moves from red through amber to green as the running average rises.
+          The desk reads interactions that already exist — voice, email, and WhatsApp — and quotes the customer lines that moved the score. NPS and CSAT each have their own dial and line. The dial colour moves from red through amber to green as the running average rises.
         </p>
 
         <h2>NPS, 0 to 10</h2>
-        <p>One number per call, not a company-wide index. The chart plots that number in arrival order and a running average.</p>
+        <p>One number per interaction, not a company-wide index. The chart plots that number in arrival order and a running average.</p>
         <table className="table">
           <thead>
             <tr>
@@ -71,14 +71,14 @@ export default function ScoringPage() {
 
         <h2>When an action fires</h2>
         <p>
-          Either a detractor NPS or a negative CSAT is enough. The action is specific to the lines that scored the call, and the status is already Escalated, Assigned, or Offer made.
+          Either a detractor NPS or a negative CSAT is enough. The action is specific to the lines that scored the interaction, and the status is already Escalated, Assigned, or Offer made.
         </p>
         <p>
-          Example: a logistics finance manager says the statement arrived too late to pay, then the payments team sent a demand for payment. That call scores at the bottom of NPS and CSAT. Opening it shows the case was escalated to the customer retentions team to call, apologize, and offer a 1% rebate on the next bill.
+          Example: Harper Stores says the bill arrived too late to pay, then the payments team sent a demand for payment. That interaction scores at the bottom of NPS and CSAT. Opening it shows the case was already escalated to the customer retentions team to apologize and offer a 1% rebate on the next bill.
         </p>
         <p>
           <Link href="/" className="card-go">
-            Watch it on the transcript desk
+            Watch it in customer interactions support
           </Link>
         </p>
       </article>

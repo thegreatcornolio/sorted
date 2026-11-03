@@ -47,23 +47,24 @@ if (summaries.size !== sentiments.negative) {
   failures.push(`expected unique actions, got ${summaries.size} for ${sentiments.negative} negatives`);
 }
 
-const meridian = analyses.find((item) => item.transcript.company === "Meridian Logistics");
-if (!meridian) {
-  failures.push("missing Meridian Logistics late-statement case");
+const harper = analyses.find((item) => item.transcript.company === "Harper Stores");
+if (!harper) {
+  failures.push("missing Harper Stores late-bill case");
 } else {
-  const { analysis } = meridian;
+  const { analysis } = harper;
   const blob = `${analysis.reason} ${analysis.nba?.detail ?? ""} ${analysis.nba?.title ?? ""} ${analysis.nba?.summary ?? ""}`;
-  if (analysis.nps > 6 || analysis.csat > 2) failures.push("Meridian is not a negative NPS/CSAT");
-  if (!/retentions/i.test(blob)) failures.push("Meridian action does not name retentions");
-  if (!/1% rebate/i.test(blob)) failures.push("Meridian action does not offer a 1% rebate");
-  if (!/apolog/i.test(blob)) failures.push("Meridian action does not apologize");
-  if (analysis.nba?.status !== "escalated") failures.push("Meridian action is not escalated");
+  if (analysis.nps > 6 || analysis.csat > 2) failures.push("Harper Stores is not a negative NPS/CSAT");
+  if (!/retentions/i.test(blob)) failures.push("Harper Stores action does not name retentions");
+  if (!/1% rebate/i.test(blob)) failures.push("Harper Stores action does not offer a 1% rebate");
+  if (!/apolog/i.test(blob)) failures.push("Harper Stores action does not apologize");
+  if (analysis.nba?.status !== "escalated") failures.push("Harper Stores action is not escalated");
   if (!analysis.quotes.some((quote) => /too late to pay/i.test(quote))) {
-    failures.push("Meridian quote does not mention the late statement");
+    failures.push("Harper Stores quote does not mention the late bill");
   }
   if (!analysis.quotes.some((quote) => /demand for payment/i.test(quote))) {
-    failures.push("Meridian quote does not mention the payment demand");
+    failures.push("Harper Stores quote does not mention the payment demand");
   }
+  if (harper.transcript.channel !== "voice") failures.push("Harper Stores late-bill case should stay a voice interaction");
 }
 
 const homeWifi = transcripts.some((item) =>
@@ -71,9 +72,27 @@ const homeWifi = transcripts.some((item) =>
 );
 if (homeWifi) failures.push("consumer home-wifi language slipped into a transcript");
 
-const jargon = /\b(DIA|SLA|VLAN|ONT|MRC|RFS|ethernet|wavelength|demarcation|packet loss|truck-roll|provisioning|circuit)\b/i;
-const jargonHit = transcripts.find((item) => item.lines.some((line) => jargon.test(line.text)) || jargon.test(item.topic));
-if (jargonHit) failures.push(`${jargonHit.id} still uses specialist fiber jargon`);
+const channels = { voice: 0, email: 0, whatsapp: 0 };
+for (const item of transcripts) {
+  if (item.channel !== "voice" && item.channel !== "email" && item.channel !== "whatsapp") {
+    failures.push(`${item.id} has no channel`);
+  } else {
+    channels[item.channel] += 1;
+  }
+}
+if (channels.voice < 25 || channels.email < 25 || channels.whatsapp < 25) {
+  failures.push(`expected a real split across voice, email, and WhatsApp, got ${channels.voice}/${channels.email}/${channels.whatsapp}`);
+}
+
+const jargon = /\b(DIA|SLA|VLAN|ONT|MRC|RFS|ethernet|wavelength|demarcation|packet loss|truck-roll|provisioning|circuit|fiber|fibre|gridline|broadband)\b/i;
+const jargonHit = transcripts.find(
+  (item) =>
+    jargon.test(item.company) ||
+    jargon.test(item.topic) ||
+    jargon.test(item.place) ||
+    item.lines.some((line) => jargon.test(line.text)),
+);
+if (jargonHit) failures.push(`${jargonHit.id} still uses fibre-desk language`);
 
 if (failures.length) {
   console.error(failures.join("\n"));
@@ -81,7 +100,7 @@ if (failures.length) {
 }
 
 console.log(
-  `ok ${transcripts.length} transcripts · positive ${sentiments.positive} · mixed ${sentiments.mixed} · negative ${sentiments.negative}`,
+  `ok ${transcripts.length} interactions · voice ${channels.voice} · email ${channels.email} · whatsapp ${channels.whatsapp} · positive ${sentiments.positive} · mixed ${sentiments.mixed} · negative ${sentiments.negative}`,
 );
 for (const { transcript, analysis } of analyses) {
   console.log(

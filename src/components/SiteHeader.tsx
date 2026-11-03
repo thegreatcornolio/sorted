@@ -14,11 +14,11 @@ export function SiteHeader({
         <strong>
           SORTED<span>.AI</span>
         </strong>
-        <small>Customer intelligence</small>
+        <small>Customer support</small>
       </Link>
       <nav className="site-nav" aria-label="Demos">
         <Link href="/" aria-current={current === "desk" ? "page" : undefined}>
-          Transcript desk
+          Customer interactions
         </Link>
         <Link href="/scoring" aria-current={current === "scoring" ? "page" : undefined}>
           Score model

@@ -22,7 +22,7 @@ export function ScoreDial({
   const shown = value === null ? "—" : value.toFixed(1);
 
   return (
-    <article className="dial-card" aria-label={value === null ? `${label} dial waiting for calls` : `${label} ${shown} out of ${max}`}>
+    <article className="dial-card" aria-label={value === null ? `${label} dial waiting for interactions` : `${label} ${shown} out of ${max}`}>
       <p className="eyebrow">{label}</p>
       <svg viewBox="0 0 200 124" className="dial" role="img">
         <path d="M22 108 A78 78 0 0 1 178 108" fill="none" stroke="#e6edf2" strokeWidth="16" strokeLinecap="round" />

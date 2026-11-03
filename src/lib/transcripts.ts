@@ -1,132 +1,127 @@
-import type { Transcript } from "./types";
+import type { Channel, Transcript } from "./types";
 
 type Line = { speaker: "Agent" | "Customer"; text: string };
 
 const AGENTS = ["Aisha Khan", "James Adeyemi", "Helen Okonkwo", "Tom Becker", "Ruth Nkosi", "Sara Iqbal", "Mark Olsen", "David Pell"];
 
-const COMPANIES = [
-  "Halden and Rowe",
-  "Keel Insurance",
-  "Bramley Food Group",
-  "Meridian Logistics",
-  "Pinnacle Components",
-  "Hart and Elm",
-  "Lowther Retail Parks",
-  "Northwharf Cold Store",
-  "Quayline Ferries",
-  "Calder Housing",
-  "Fenwick Materials",
-  "Arbour and Pine",
-  "Vantage Manufacturing",
-  "Redholt Hotels",
-  "Sable Meeting Rooms",
-  "Mallow and Finch",
-  "Ironbridge Castings",
-  "Brightpath Schools Trust",
-  "Dornay Logistics",
-  "Tern Facilities",
-  "Aster Wealth",
-  "Glasshouse Studios",
-  "Pennycuick Bakeries",
-  "Holt Engineering",
-  "Nairn Biomedical",
-  "Yarrow Print",
-  "Peakline Haulage",
-  "Elmwood Assets",
-  "Bracken Leisure",
-  "Ivo Maritime",
+const ACCOUNTS = [
+  "Maya Ellis",
+  "Keel & Co",
+  "Bramley Foods",
+  "Harper Stores",
+  "Owen Blake",
+  "Hart & Elm",
+  "Lowther Gifts",
+  "Noah Bennett",
+  "Priya Shah",
+  "Calder Books",
+  "Anita Shah",
+  "Lucy Arbour",
+  "Vantage Toys",
+  "Claire Redholt",
+  "Jon Sable",
+  "Grace Mallow",
+  "Irene Kowalski",
+  "Nina Bright",
+  "Evan Dornay",
+  "Mohammed Tern",
+  "Aster Travel",
+  "Ben Glass",
+  "Fiona Penny",
+  "Simon Holt",
+  "Lewis Nairn",
+  "Alice Yarrow",
+  "Gordon Peak",
+  "Elmwood Gifts",
+  "Tom Bracken",
+  "Helena Ivo",
   "Rowan Legal",
-  "Fieldgate Warehousing",
-  "Cobalt Kitchens",
-  "Harrow Clinics Group",
-  "Larkspur Design",
+  "Fieldgate Market",
+  "Cobalt Kitchen",
+  "Harrow Clinic",
+  "Larkspur Home",
   "Northgate Motors",
   "Pembroke Books",
-  "Sable & Co Solicitors",
-  "Westmill Dairies",
-  "Orchard Hotels",
+  "Sable & Co",
+  "Westmill Dairy",
+  "Orchard Hotel",
   "Kite Analytics",
-  "Bridgewater Ports",
+  "Samira Iqbal",
   "Amber Finance",
   "Stone & Clay",
-  "Harbourlight Shipping",
+  "Harbourlight",
   "Greenlane Couriers",
-  "Pellham Architects",
-  "Fox & Hare Retail",
-  "Millhouse Bakers",
+  "Pellham Design",
+  "Fox & Hare",
+  "Bridgewater Club",
   "Atlas Surveys",
-  "Cedar Clinics Admin",
-  "Riverbank Housing",
+  "Cedar Clinic",
+  "Riverbank Lettings",
   "Oakmont Law",
-  "Summit Fit Clubs",
-  "Beacon Schools Office",
+  "Summit Fit",
+  "Beacon School",
   "Wren Logistics",
-  "Copper Pot Catering",
-  "Hilltop Surveyors",
-  "Marlow Printworks",
+  "Millhouse Bakery",
+  "Hilltop Survey",
+  "Marlow Print",
   "Fable Toys",
-  "Northstar Insurance",
-  "Grove Accountants",
-  "Lantern Hotels",
+  "Northstar Cover",
+  "Grove Accounts",
+  "Lantern Hotel",
   "Swift Parcel",
-  "Heath Ceramics",
-  "Bold Street Retail",
-  "Quietroom Studios",
-  "Portside Fishmongers",
+  "Copper Pot",
+  "Bold Street Shop",
+  "Quietroom Studio",
+  "Portside Fish",
   "Elm Legal",
-  "Kindred Care Offices",
+  "Kindred Care",
   "Moorland Builds",
   "Paperkite Agency",
   "Redlane Coaches",
-  "Silverfork Group",
+  "Silverfork Cafe",
   "Tidal Marine",
   "Upperton Stores",
-  "Violet Labs Office",
-  "Westcourt Chambers",
-  "Yardley Packaging",
+  "Violet Labs",
+  "Westcourt Rooms",
+  "Yardley Boxes",
   "Zephyr Travel",
-  "Ash & Oak Joinery",
+  "Ash & Oak",
   "Bramble Foods",
-  "Cinder Hotels",
-  "Dovetail Workshops",
+  "Cinder Hotel",
+  "Dovetail Workshop",
   "Easton Freight",
   "Fern Accounting",
-  "Gable Architects",
-  "Hearth Kitchens",
-  "Indigo Offices",
+  "Gable Studio",
+  "Hearth Kitchen",
+  "Indigo Office",
   "Jasper Media",
   "Kestrel Security",
-  "Linden Care Group",
-  "Maple Dental Group",
+  "Linden Care",
+  "Maple Dental",
   "Nettle & Co",
-  "Osprey Warehouses",
+  "Osprey Warehouse",
   "Plumline Catering",
   "Quarry Stone",
   "Reed & Birch",
-  "Saffron Hotels",
+  "Saffron Hotel",
   "Thorn Electrical",
-  "Umber Studios",
-  "Vale Transport",
-  "Willow Clinics Office",
 ];
 
 const CONTACTS = [
-  "Oliver Grant", "Helen Marsh", "Chris Adeyemi", "Priya Raman", "Mark Ellison", "Sophie Hart", "Daniel Lowther",
-  "Irene Kowalski", "Paul Quinn", "Rebecca Calder", "Anita Shah", "Lucy Arbour", "Owen Blake", "Claire Redholt",
-  "Jon Sable", "Grace Mallow", "Hugh Ironbridge", "Nina Bright", "Evan Dornay", "Mohammed Tern", "Catherine Aster",
-  "Ben Glass", "Fiona Pennycuick", "Simon Holt", "Lewis Nairn", "Alice Yarrow", "Gordon Peak", "Sarah Elmwood",
+  "Maya Ellis", "Helen Marsh", "Chris Adeyemi", "Priya Raman", "Owen Blake", "Sophie Hart", "Daniel Lowther",
+  "Noah Bennett", "Priya Shah", "Rebecca Calder", "Anita Shah", "Lucy Arbour", "Owen Blake", "Claire Redholt",
+  "Jon Sable", "Grace Mallow", "Irene Kowalski", "Nina Bright", "Evan Dornay", "Mohammed Tern", "Catherine Aster",
+  "Ben Glass", "Fiona Penny", "Simon Holt", "Lewis Nairn", "Alice Yarrow", "Gordon Peak", "Sarah Elmwood",
   "Tom Bracken", "Helena Ivo",
 ];
 
 const ROLES = [
-  "office manager", "finance manager", "operations lead", "IT lead", "managing director", "practice manager",
-  "site manager", "head of operations",
+  "customer", "account holder", "buyer", "finance lead", "store manager", "parent", "member", "office manager",
 ];
 
 const PLACES = [
-  "London office", "Manchester studio", "Leeds warehouse", "Birmingham site", "Bristol office", "Cardiff office",
-  "Glasgow depot", "Edinburgh office", "Newcastle office", "Oxford office", "Sheffield plant", "Nottingham office",
-  "Cambridge office", "Liverpool office", "Aberdeen bakery", "Dover office",
+  "home address", "London", "Manchester shop", "billing address", "Leeds", "Bristol", "Cardiff", "Glasgow",
+  "Edinburgh", "Birmingham", "Newcastle", "Oxford", "Sheffield", "Nottingham", "Liverpool", "Cambridge",
 ];
 
 function clock(index: number): string {
@@ -136,18 +131,23 @@ function clock(index: number): string {
   return `${hour}:${String(minute).padStart(2, "0")}`;
 }
 
+function channelFor(index: number): Channel {
+  return (["voice", "email", "whatsapp"] as const)[index % 3];
+}
+
 function base(index: number, topic: string, queue: string, lines: Line[]): Transcript {
-  const company = COMPANIES[index];
+  const channel = channelFor(index);
   return {
     id: `gl-${1001 + index}`,
-    company,
+    channel,
+    company: ACCOUNTS[index],
     contact: CONTACTS[index % CONTACTS.length],
     role: ROLES[index % ROLES.length],
     place: PLACES[index % PLACES.length],
     queue,
     agent: AGENTS[index % AGENTS.length],
     callTime: clock(index),
-    duration: `${5 + (index % 8)} min`,
+    duration: channel === "voice" ? `${5 + (index % 8)} min` : channel === "email" ? "email thread" : "WhatsApp chat",
     topic,
     lines,
   };
@@ -155,179 +155,195 @@ function base(index: number, topic: string, queue: string, lines: Line[]): Trans
 
 function talk(index: number, customer: string[]): Line[] {
   const name = CONTACTS[index % CONTACTS.length].split(" ")[0];
-  const company = COMPANIES[index];
+  const account = ACCOUNTS[index];
   const agent = AGENTS[index % AGENTS.length].split(" ")[0];
-  const lines: Line[] = [
-    { speaker: "Agent", text: `Gridline business fiber, ${agent} speaking.` },
-    { speaker: "Customer", text: `Hello, it is ${name} at ${company}.` },
-  ];
+  const channel = channelFor(index);
+  const lines: Line[] =
+    channel === "voice"
+      ? [
+          { speaker: "Agent", text: `Thanks for calling support, ${agent} speaking.` },
+          { speaker: "Customer", text: `Hello, it is ${name}, about ${account}.` },
+        ]
+      : channel === "email"
+        ? [
+            { speaker: "Agent", text: `From ${agent} on the support team. I have your email.` },
+            { speaker: "Customer", text: `Hello, it is ${name}, about ${account}.` },
+          ]
+        : [
+            { speaker: "Agent", text: `Hi ${name}, ${agent} from support here.` },
+            { speaker: "Customer", text: `Hello, it is ${name}, about ${account}.` },
+          ];
+  const more =
+    channel === "email" ? "Thanks. I have the account open. Tell me a bit more." : "I have the account open. Tell me a bit more.";
+  const close =
+    channel === "email"
+      ? "Thank you. I have replied and noted that on the account."
+      : "Thank you. I have noted that on the account.";
   customer.forEach((text, step) => {
-    if (step > 0) {
-      lines.push({ speaker: "Agent", text: "I have the account in front of me. Tell me a bit more." });
-    }
+    if (step > 0) lines.push({ speaker: "Agent", text: more });
     lines.push({ speaker: "Customer", text });
   });
-  lines.push({ speaker: "Agent", text: "Thank you. I have noted that on the account." });
+  lines.push({ speaker: "Agent", text: close });
   return lines;
 }
 
 const NEGATIVE_AT: Record<number, { topic: string; queue: string; lines: string[] }> = {
   3: {
-    topic: "Statement arrived too late, then a payment demand",
+    topic: "Bill arrived too late, then a payment demand",
     queue: "Billing",
     lines: [
-      "The statement for the London office arrived on the 28th, which was too late to pay before the due date. The money was sitting ready on the 14th.",
-      "Your payments team then sent a demand for payment and said you might cut the office off. We pay when the bill actually arrives.",
+      "The bill for last month arrived on the 28th, which was too late to pay before the due date. The money was ready on the 14th.",
+      "Your payments team then sent a demand for payment and said you might close the account. We pay when the bill actually arrives.",
     ],
   },
   7: {
-    topic: "Office was down longer than promised",
-    queue: "Support",
+    topic: "Parcel arrived three days late",
+    queue: "Delivery",
     lines: [
-      "The Birmingham office was down from just after two in the morning. The team could not send orders out.",
-      "That was longer than you promised. You said a fix would take about four hours, and we were dark for most of the morning.",
+      "The parcel arrived late. It was meant to be here for a birthday on Saturday.",
+      "It was three days late. We paid for next-day delivery and it sat in a depot.",
     ],
   },
   12: {
-    topic: "Nobody arrived for the install",
-    queue: "Installs",
+    topic: "Item arrived broken",
+    queue: "Delivery",
     lines: [
-      "This was the install for the new Sheffield plant.",
-      "Nobody arrived in either window you booked. I sent the site team home twice, and we still have no line on the day we said we would open.",
+      "The lamp arrived broken. The box was crushed and the shade was in pieces.",
+      "I am still waiting for the replacement you promised on Tuesday.",
     ],
   },
   16: {
-    topic: "New office line still not live",
-    queue: "Setup",
+    topic: "Refund never arrived",
+    queue: "Refunds",
     lines: [
-      "The Leeds line is three weeks late against the date you put on the order.",
-      "It is still not live. The foundry is sharing a neighbour's connection, and that drops when their shift changes.",
+      "I returned the coat two weeks ago and the shop scanned it in.",
+      "The refund never arrived. The money is still missing from my account.",
     ],
   },
   20: {
-    topic: "Account manager has not called back",
-    queue: "Accounts",
+    topic: "Extra fee with no warning",
+    queue: "Billing",
     lines: [
-      "I have called our account manager six times since the renewal papers went out.",
-      "She didn't return a single one. Silence on a renewal is how you lose an office like ours.",
+      "There is an extra fee on this bill that was not on the last one.",
+      "We weren't told it was coming. A travel booking should not hide a new charge in the footer.",
     ],
   },
   27: {
-    topic: "Charged twice for the same bill",
-    queue: "Billing",
+    topic: "Forty minutes on hold",
+    queue: "Support",
     lines: [
-      "You charged us twice for the March bill. The money left the account on the 4th and again on the 6th.",
-      "Please put one of those payments back. We should not have to raise this twice.",
+      "I was on hold just to ask where my order is.",
+      "That was forty minutes. Nobody picked up, and I still do not know if it has left the warehouse.",
     ],
   },
   34: {
-    topic: "Slow connection all week",
-    queue: "Support",
+    topic: "Wrong item sent again",
+    queue: "Delivery",
     lines: [
-      "The office has had a slow connection since Monday. Video calls drop and the tills time out.",
-      "It has been unusable all week. This is not a busy-hour blip. The shop floor cannot work like this.",
+      "You sent the wrong item. I ordered a blue kettle and a red one arrived.",
+      "This is the second time. Please send the right one and collect the other.",
     ],
   },
   41: {
-    topic: "Promised callback never came",
-    queue: "Support",
+    topic: "Locked out of the account",
+    queue: "Accounts",
     lines: [
-      "Yesterday your colleague said a manager would call me before lunch.",
-      "The callback never came. I sat by the phone through two meetings and heard nothing.",
+      "I am locked out of my account and the reset email never came.",
+      "I cannot pay the bill until I can sign in. The money is sitting there ready.",
     ],
   },
   48: {
-    topic: "Line was not ready for the office move",
-    queue: "Installs",
+    topic: "Charged twice for the same order",
+    queue: "Billing",
     lines: [
-      "This was the office move into the new Bristol floor. Staff arrived on Monday with nowhere to plug in.",
-      "The line was not ready. We were told Friday it would be, and reception is still taking bookings on personal phones.",
+      "You charged me twice for the same order. The money left on the 4th and again on the 6th.",
+      "Please put one of those payments back. I should not have to raise this twice.",
     ],
   },
   56: {
-    topic: "Passed between four people",
+    topic: "Promised callback never came",
     queue: "Support",
     lines: [
-      "I have been trying to sort a simple address change on the bill since Tuesday.",
-      "Your team transferred me four times this morning. I still do not have one person who owns it.",
+      "Yesterday your colleague said someone would call me before lunch about the missing shoes.",
+      "The callback never came. I waited through two meetings and heard nothing.",
     ],
   },
   64: {
-    topic: "Billed for a line that was never turned on",
-    queue: "Billing",
+    topic: "Passed between four people",
+    queue: "Support",
     lines: [
-      "You billed us the full monthly amount for the new Bristol line.",
-      "That line was never turned on. There is no box on the wall and the office cannot use it.",
+      "I have been trying to change the delivery address since Tuesday.",
+      "Your team transferred me four times this morning. I still do not have one person who owns it.",
     ],
   },
   73: {
-    topic: "Price went up with no warning",
-    queue: "Accounts",
+    topic: "Cancelled, and still billed",
+    queue: "Billing",
     lines: [
-      "The renewal landed and the price went up by nine percent across our sites.",
-      "We weren't told it was coming. A leisure group should not find that in the footer of a PDF.",
+      "I cancelled the membership on the 2nd, in the account and by email.",
+      "You still billed me for a full month after that. Please take it off.",
     ],
   },
   86: {
-    topic: "Third visit and the line is still dropping",
-    queue: "Support",
+    topic: "Complaint and no one came back",
+    queue: "Complaints",
     lines: [
-      "This is the third visit for the Glasgow depot. Each time the engineer says it is fixed.",
-      "The line is still dropping the same evening. The night shift loses the job board and the trucks wait.",
+      "I raised a complaint last Wednesday about a missing parcel.",
+      "No one came back. Not an email, not a message, nothing.",
     ],
   },
   91: {
-    topic: "Bill still charges for closed sites",
-    queue: "Billing",
+    topic: "Refund was short",
+    queue: "Refunds",
     lines: [
-      "The bill is wrong again this month.",
-      "It still includes two sites we closed in August. Please take them off and credit what we have already paid.",
+      "The refund was short. I paid 86 and you sent back 40.",
+      "Please pay the full amount. I sent the shoes back unused.",
     ],
   },
   95: {
-    topic: "Office cut off with no warning",
-    queue: "Support",
+    topic: "Account closed with no warning",
+    queue: "Accounts",
     lines: [
-      "You cut us off at 9 this morning. The whole reservations office went dark.",
-      "There was no warning. No call, no email, nothing before the phones died.",
+      "You closed the account at 9 this morning. The shop could not take orders.",
+      "There was no warning. No call and no email before it stopped.",
     ],
   },
 };
 
 const MILD_LINES = [
-  "The line is back, but I would have liked a text before the team noticed it had dropped.",
-  "The total is right. The bill is harder to read than it needs to be for a group with this many sites.",
-  "It is not an outage. The office line is just a bit slow at busy times, and I want someone to look before the next busy morning.",
-  "The office line itself is fine. The second login is not yet enabled, and we asked for that last week.",
-  "The change is done. I was on hold for nine minutes before anyone picked up a simple request.",
-  "The office is working this morning. I am still cautious until we see a full week without another drop.",
+  "The order arrived, but I would have liked a text when it was on the way.",
+  "The total is right. The bill is harder to read than it needs to be.",
+  "It is not a big problem. The reply was just a bit slow, and I want someone to look at the wait.",
+  "The account itself is fine. The second login is not yet enabled, and we asked for that last week.",
+  "The change is done. I was on hold for nine minutes before anyone picked up a simple question.",
+  "The refund is in. I am still cautious until I see it clear the bank.",
 ];
 
 const MILD_TOPICS = [
-  "Outage fixed, but nobody warned the office",
+  "Wanted a text when the order was on the way",
   "Bill is hard to read",
-  "Connection a bit slow when the office is busy",
-  "Second login still not switched on",
-  "Long wait on hold",
-  "Not sure yesterday's fix will hold",
+  "Reply was a bit slow",
+  "Second login still not on",
+  "Short wait on hold",
+  "Waiting to see the refund clear",
 ];
 
 const ONE_LINE = [
-  "It was ready on the day you promised. The office opened without a hitch.",
+  "It arrived on the day you promised. That was easy.",
   "I am really pleased with the way your team handled it.",
   "That was excellent from start to finish.",
-  "The work went smoothly and the team were online before nine.",
-  "We will renew. The service has been steady all year.",
-  "Spot on. The office opened on time.",
-  "We signed off this morning. Please send the notes to finance.",
-  "We will go ahead with the extra office.",
+  "The return went smoothly and the money was back the next day.",
+  "I will shop again. The help was clear and quick.",
+  "Spot on. The replacement was here the next morning.",
+  "I am very happy with it. Please tell the person who helped me.",
+  "That was easy. Thank you for sorting the address.",
 ];
 
 const TWO_LINES: [string, string][] = [
-  ["The work went smoothly.", "I am really pleased."],
-  ["It was ready on the day you promised.", "That was excellent."],
-  ["We signed off this morning.", "We will renew."],
-  ["Spot on.", "We will go ahead with the next office."],
+  ["The return went smoothly.", "I am really pleased."],
+  ["It arrived on the day you promised.", "That was excellent."],
+  ["I am very happy with it.", "I will shop again."],
+  ["Spot on.", "That was easy."],
 ];
 
 const CALM_LINES = [
@@ -341,10 +357,10 @@ function positiveLines(index: number): { topic: string; lines: string[] } {
   const mode = index % 3;
   if (mode === 0) {
     const pair = TWO_LINES[index % TWO_LINES.length];
-    return { topic: "Clean result for the office", lines: [pair[0], pair[1]] };
+    return { topic: "Clean result for the customer", lines: [pair[0], pair[1]] };
   }
   if (mode === 1) {
-    return { topic: "Office happy with the result", lines: [ONE_LINE[index % ONE_LINE.length]] };
+    return { topic: "Customer happy with the help", lines: [ONE_LINE[index % ONE_LINE.length]] };
   }
   return { topic: "Straightforward update, customer is fine", lines: [CALM_LINES[index % CALM_LINES.length]] };
 }
@@ -356,11 +372,12 @@ function buildOne(index: number): Transcript {
   }
   if (MIXED_AT.has(index)) {
     const mild = index % MILD_LINES.length;
-    return base(index, MILD_TOPICS[mild], mild % 2 === 0 ? "Support" : "Billing", talk(index, [MILD_LINES[mild]]));
+    const queue = mild % 2 === 0 ? "Support" : "Billing";
+    return base(index, MILD_TOPICS[mild], queue, talk(index, [MILD_LINES[mild]]));
   }
   const happy = positiveLines(index);
-  const queue = index % 5 === 0 ? "Sales" : index % 2 === 0 ? "Support" : "Accounts";
-  return base(index, happy.topic, queue, talk(index, happy.lines));
+  const queues = ["Support", "Delivery", "Billing", "Accounts", "Refunds"];
+  return base(index, happy.topic, queues[index % queues.length], talk(index, happy.lines));
 }
 
 export const transcripts: Transcript[] = Array.from({ length: 100 }, (_, index) => buildOne(index));

@@ -1,6 +1,6 @@
 # SORTED.AI
 
-Live transcript desk for a business-fiber sales and support team. The app reads call transcripts that have already been produced. It does not transcribe audio.
+NPS and CSAT customer interactions support. Voice, email, and WhatsApp are already written down. The app scores them for a generic customer-service team. It does not transcribe audio.
 
 ## Run
 
@@ -9,7 +9,7 @@ npm install
 npm run dev
 ```
 
-- Transcript desk: http://localhost:3000 and https://sorted.trilogybpo.com/
+- Customer interactions: http://localhost:3000 and https://sorted.trilogybpo.com/
 - Same desk: http://localhost:3000/nadclinic and https://sorted.trilogybpo.com/nadclinic/
 - Score model: http://localhost:3000/scoring
 

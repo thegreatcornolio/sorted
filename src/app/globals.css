@@ -319,6 +319,9 @@ h1, h2, h3, .brand, .card-title {
 .tag.mix { background: var(--amber-bg); color: var(--amber); }
 .tag.neg { background: #fde8e6; color: var(--red); }
 .tag.triggered { background: var(--navy); color: white; }
+.tag.voice { background: #e7f0fa; color: #1d4e89; }
+.tag.email { background: #f3eefe; color: #5b3d8a; }
+.tag.whatsapp { background: #e5f6ee; color: #146c43; }
 .score-pair { font-family: var(--mono); font-weight: 700; }
 
 .feed-hit.is-new { animation: land 0.35s ease; }

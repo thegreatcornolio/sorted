@@ -1,7 +1,10 @@
 export type Speaker = "Agent" | "Customer";
 
+export type Channel = "voice" | "email" | "whatsapp";
+
 export type Transcript = {
   id: string;
+  channel: Channel;
   company: string;
   contact: string;
   role: string;

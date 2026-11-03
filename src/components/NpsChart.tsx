@@ -45,7 +45,7 @@ export function ScoreChart({
         aria-label={
           points.length === 0
             ? `${label} chart is empty.`
-            : `${label} by arriving call. Average ${average?.toFixed(1) ?? "unavailable"}.`
+            : `${label} by arriving interaction. Average ${average?.toFixed(1) ?? "unavailable"}.`
         }
       >
         {ticks.map((tick) => (
@@ -74,7 +74,7 @@ export function ScoreChart({
           );
         })}
         <text x={PAD.l} y={HEIGHT - 6} fill="#5c6874" fontSize="11">
-          Each call · dashed line is the running average
+          Each interaction · dashed line is the running average
         </text>
       </svg>
     </div>
