@@ -5,7 +5,7 @@ export type Transcript = {
   company: string;
   contact: string;
   role: string;
-  circuit: string;
+  place: string;
   queue: string;
   agent: string;
   callTime: string;

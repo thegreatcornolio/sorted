@@ -7,12 +7,13 @@ import { transcripts } from "@/lib/transcripts";
 import type { Analysis } from "@/lib/types";
 import type { Transcript } from "@/lib/types";
 import { CallDetail } from "./CallDetail";
-import { NpsChart } from "./NpsChart";
+import { ScoreChart } from "./NpsChart";
+import { ScoreDial } from "./ScoreDial";
 import { SiteHeader } from "./SiteHeader";
 
 type Row = { transcript: Transcript; analysis: Analysis; order: number };
 
-const STEP_MS = 260;
+const STEP_MS = 3000;
 
 export function TranscriptDesk() {
   const params = useSearchParams();
@@ -35,16 +36,14 @@ export function TranscriptDesk() {
   useEffect(() => {
     setCount(0);
     setSelectedId(null);
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const step = reduce ? 40 : STEP_MS;
     const timers: number[] = [];
     let seen = 0;
     const tick = () => {
       seen += 1;
       setCount(seen);
-      if (seen < rows.length) timers.push(window.setTimeout(tick, step));
+      if (seen < rows.length) timers.push(window.setTimeout(tick, STEP_MS));
     };
-    timers.push(window.setTimeout(tick, reduce ? 40 : 350));
+    timers.push(window.setTimeout(tick, STEP_MS));
     return () => timers.forEach((timer) => window.clearTimeout(timer));
   }, [run, rows.length]);
 
@@ -112,38 +111,63 @@ export function TranscriptDesk() {
             <p className="kicker">Gridline Business Fiber · sales and support</p>
             <h1>Transcript desk</h1>
             <p>
-              This morning&apos;s call transcripts stream in as already-written text. Each one is scored for sentiment, NPS, and CSAT. A negative NPS or CSAT triggers a next best action — the action is already assigned, not merely suggested.
+              This morning&apos;s call transcripts arrive one at a time, a few seconds apart. Each one is scored for sentiment, NPS, and CSAT. A negative NPS or CSAT triggers a next best action — the action is already assigned, not merely suggested.
             </p>
           </div>
 
-          <section className="kpis" aria-label="Live scores">
-            <article className="kpi">
-              <span>Transcripts</span>
-              <strong data-testid="kpi-count">
-                {count}
-                <small>/{rows.length}</small>
-              </strong>
-              <em>Arriving now</em>
-            </article>
-            <article className="kpi">
-              <span>Average NPS</span>
-              <strong data-testid="kpi-nps">{avgNps === null ? "—" : avgNps.toFixed(1)}</strong>
-              <em>Primary chart · 0–10</em>
-            </article>
-            <article className="kpi">
-              <span>Average CSAT</span>
-              <strong data-testid="kpi-csat">{avgCsat === null ? "—" : avgCsat.toFixed(1)}</strong>
-              <em>1–5, beside every call</em>
-            </article>
-            <article className="kpi">
-              <span>Actions triggered</span>
-              <strong data-testid="kpi-actions">{actions.length}</strong>
-              <em>Negative NPS or CSAT</em>
-            </article>
-          </section>
-          <p className="bands">
-            Promoters <b>{promoters}</b> · Passives <b>{passives}</b> · Detractors <b>{detractors}</b>
+          <p className="status-strip">
+            <span>
+              Transcripts <strong data-testid="kpi-count">{count}/{rows.length}</strong>
+            </span>
+            <span>
+              Actions triggered <strong data-testid="kpi-actions">{actions.length}</strong>
+            </span>
+            <span>
+              Promoters <b>{promoters}</b> · Passives <b>{passives}</b> · Detractors <b>{detractors}</b>
+            </span>
           </p>
+          <div className="score-board">
+            <section className="score-row" aria-label="NPS">
+              <ScoreDial label="NPS" value={avgNps} min={0} max={10} caption="Running average · 0 to 10. Low is red, high is green." />
+              <div className="panel">
+                <div className="panel-head">
+                  <h2>NPS as calls arrive</h2>
+                  <p data-testid="kpi-nps">{avgNps === null ? "Waiting" : `Average ${avgNps.toFixed(1)}`}</p>
+                </div>
+                {visible.length === 0 ? (
+                  <p className="empty" style={{ padding: "16px" }}>The NPS line starts when the first transcript lands.</p>
+                ) : (
+                  <ScoreChart
+                    label="NPS"
+                    min={0}
+                    max={10}
+                    average={avgNps}
+                    points={visible.map((row) => ({ value: row.analysis.nps, company: row.transcript.company }))}
+                  />
+                )}
+              </div>
+            </section>
+            <section className="score-row" aria-label="CSAT">
+              <ScoreDial label="CSAT" value={avgCsat} min={1} max={5} caption="Running average · 1 to 5. Its own dial, separate from NPS." />
+              <div className="panel">
+                <div className="panel-head">
+                  <h2>CSAT as calls arrive</h2>
+                  <p data-testid="kpi-csat">{avgCsat === null ? "Waiting" : `Average ${avgCsat.toFixed(1)}`}</p>
+                </div>
+                {visible.length === 0 ? (
+                  <p className="empty" style={{ padding: "16px" }}>The CSAT line starts when the first transcript lands.</p>
+                ) : (
+                  <ScoreChart
+                    label="CSAT"
+                    min={1}
+                    max={5}
+                    average={avgCsat}
+                    points={visible.map((row) => ({ value: row.analysis.csat, company: row.transcript.company }))}
+                  />
+                )}
+              </div>
+            </section>
+          </div>
           <p className="sr-only" aria-live="polite">
             {actions.length > 0
               ? `${actions.length} actions triggered. Lowest is ${actions[0].transcript.company}, NPS ${actions[0].analysis.nps}.`
@@ -154,30 +178,7 @@ export function TranscriptDesk() {
 
           <div className="desk-grid">
             <div>
-              <section className="panel" aria-label="NPS chart">
-                <div className="panel-head">
-                  <h2>NPS as calls arrive</h2>
-                  <p>Primary live score · 0 to 10</p>
-                </div>
-                {visible.length === 0 ? (
-                  <p className="empty" style={{ padding: "16px" }}>
-                    Scores plot as each transcript lands.
-                  </p>
-                ) : (
-                  <NpsChart
-                    points={visible.map((row) => ({ nps: row.analysis.nps, company: row.transcript.company }))}
-                    average={avgNps}
-                  />
-                )}
-                <div className="legend">
-                  <span><i className="swatch promoter" /> Promoter 9–10</span>
-                  <span><i className="swatch passive" /> Passive 7–8</span>
-                  <span><i className="swatch detractor" /> Detractor 0–6</span>
-                  <span><i className="swatch avg" /> Running average</span>
-                </div>
-              </section>
-
-              <section className="panel" style={{ marginTop: 16 }} aria-label="Analyzed calls">
+              <section className="panel" aria-label="Analyzed calls">
                 <div className="panel-head">
                   <h2>Analyzed calls</h2>
                   <p>Newest first</p>
@@ -257,13 +258,13 @@ function FeedButton({ row, fresh, onOpen }: { row: Row; fresh: boolean; onOpen: 
     >
       <strong>{row.transcript.company}</strong>
       <span className="meta">
-        {row.transcript.callTime} · {row.transcript.queue} · {row.transcript.circuit}
+        {row.transcript.callTime} · {row.transcript.queue} · {row.transcript.place}
       </span>
       <span className="meta">{row.transcript.topic}</span>
-      <span className="row-tags">
+      <span className="score-lines">
         <span className={`tag ${tone}`}>{sentimentLabel(row.analysis.sentiment)}</span>
-        <span className="tag score-pair">NPS {row.analysis.nps}</span>
-        <span className="tag score-pair">CSAT {row.analysis.csat}</span>
+        <span className="score-line">NPS {row.analysis.nps} · {row.analysis.npsBand}</span>
+        <span className="score-line">CSAT {row.analysis.csat} · {row.analysis.csatBand}</span>
         {row.analysis.nba ? <span className="tag triggered">{row.analysis.nba.statusLabel}</span> : null}
       </span>
       {row.analysis.nba ? <span className="quote-line">{row.analysis.nba.summary}</span> : null}

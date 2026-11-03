@@ -8,8 +8,8 @@ const analyses = transcripts.map((transcript) => ({
 
 const failures: string[] = [];
 
-if (transcripts.length < 30) {
-  failures.push(`expected at least 30 transcripts, got ${transcripts.length}`);
+if (transcripts.length !== 100) {
+  failures.push(`expected 100 transcripts, got ${transcripts.length}`);
 }
 
 const ids = new Set(transcripts.map((item) => item.id));
@@ -70,6 +70,10 @@ const homeWifi = transcripts.some((item) =>
   item.lines.some((line) => /home wifi|living room|netflix/i.test(line.text)),
 );
 if (homeWifi) failures.push("consumer home-wifi language slipped into a transcript");
+
+const jargon = /\b(DIA|SLA|VLAN|ONT|MRC|RFS|ethernet|wavelength|demarcation|packet loss|truck-roll|provisioning|circuit)\b/i;
+const jargonHit = transcripts.find((item) => item.lines.some((line) => jargon.test(line.text)) || jargon.test(item.topic));
+if (jargonHit) failures.push(`${jargonHit.id} still uses specialist fiber jargon`);
 
 if (failures.length) {
   console.error(failures.join("\n"));

@@ -26,7 +26,7 @@ const ISSUES: Rule[] = [
     nps: 1,
     csat: 1,
     reason: (quotes) =>
-      `NPS 1 and CSAT 1 because the statement arrived too late to pay and credit control then issued a demand for payment. “${quotes[0]}” “${quotes[1]}”`,
+      `NPS 1 and CSAT 1 because the statement arrived too late to pay, and then a demand for payment followed. “${quotes[0]}” “${quotes[1]}”`,
     nba: {
       referencePrefix: "RET",
       title: "Escalated to the customer retentions team",
@@ -40,81 +40,81 @@ const ISSUES: Rule[] = [
     },
   },
   {
-    id: "sla_breach",
-    all: [/circuit was down/i, /breached the sla/i],
-    quote: [/circuit was down/i, /breached the sla/i],
+    id: "long_outage",
+    all: [/office was down/i, /longer than you promised/i],
+    quote: [/office was down/i, /longer than you promised/i],
     nps: 2,
     csat: 1,
     reason: (quotes) =>
-      `NPS 2 and CSAT 1 because the circuit was down long enough to breach the fix SLA and the site could not operate. “${quotes[0]}” “${quotes[1]}”`,
+      `NPS 2 and CSAT 1 because the office was down for longer than you promised. “${quotes[0]}” “${quotes[1]}”`,
     nba: {
       referencePrefix: "ASS",
-      title: "Assigned to service assurance",
-      summary: "Assigned · duty manager calling, 10% MRC service credit",
+      title: "Assigned to the service team",
+      summary: "Assigned · service lead calling, credit for the hours the office was down",
       detail:
-        "Service assurance has taken the case. The duty manager is assigned to call the customer before noon, confirm restoration, and apply the contractual service credit of 10% of the monthly charge on the affected circuit.",
-      team: "Service assurance",
-      owner: "David Pell, duty manager",
+        "The service team has the case. A lead is assigned to call the customer today, confirm the office is back, and put a credit on the next bill for the hours the office was down.",
+      team: "Service team",
+      owner: "David Pell, service lead",
       status: "assigned",
       statusLabel: "Assigned",
     },
   },
   {
-    id: "repeat_fault",
-    all: [/third truck-roll/i, /packet loss/i],
-    quote: [/third truck-roll/i, /packet loss/i],
+    id: "repeat_visits",
+    all: [/third visit/i, /still dropping/i],
+    quote: [/third visit/i, /still dropping/i],
     nps: 2,
     csat: 1,
     reason: (quotes) =>
-      `NPS 2 and CSAT 1 because this is the third truck-roll and the packet loss returns after each visit. “${quotes[0]}” “${quotes[1]}”`,
+      `NPS 2 and CSAT 1 because this is the third visit and the connection is still dropping. “${quotes[0]}” “${quotes[1]}”`,
     nba: {
-      referencePrefix: "NOC",
-      title: "Escalated to the network operations centre",
-      summary: "Escalated · chronic fault, senior engineer and LTE failover",
+      referencePrefix: "ENG",
+      title: "Escalated to a senior engineer",
+      summary: "Escalated · senior engineer booked, backup connection until the line stays up",
       detail:
-        "The ticket has been escalated to the network operations centre as a chronic fault. A senior engineer is assigned, and a temporary LTE failover is being put on the depot until the fiber stays stable.",
-      team: "Network operations centre",
-      owner: "NOC chronic desk",
+        "A senior engineer has been escalated onto the case, and a backup connection is being put in until the office line stays up.",
+      team: "Engineering",
+      owner: "Senior engineer desk",
       status: "escalated",
       statusLabel: "Escalated",
     },
   },
   {
-    id: "phantom_charge",
-    all: [/invoiced/i, /never handed over/i],
-    quote: [/invoiced/i, /never handed over/i],
+    id: "billed_not_live",
+    all: [/billed us/i, /never turned on/i],
+    quote: [/billed us/i, /never turned on/i],
     nps: 3,
     csat: 1,
     reason: (quotes) =>
-      `NPS 3 and CSAT 1 because the customer was invoiced for a circuit that was never handed over. “${quotes[0]}” “${quotes[1]}”`,
+      `NPS 3 and CSAT 1 because the customer was billed for a line that was never turned on. “${quotes[0]}” “${quotes[1]}”`,
     nba: {
       referencePrefix: "BIL",
-      title: "Offer made by billing resolutions",
-      summary: "Offer made · charge credited and statement reissued",
+      title: "Offer made by the billing team",
+      summary: "Offer made · charge taken off and a corrected bill sent",
       detail:
-        "Billing resolutions has credited the monthly charge for the circuit that was never handed over and is sending a corrected statement to the finance director. The offer is already on the account, not waiting for approval.",
-      team: "Billing resolutions",
-      owner: "Helen Okonkwo, billing resolutions",
+        "The billing team has taken the charge off the account and is sending a corrected bill. The offer is already made, not waiting for another approval.",
+      team: "Billing",
+      owner: "Helen Okonkwo, billing",
       status: "offer_made",
       statusLabel: "Offer made",
     },
   },
   {
-    id: "surprise_renewal",
-    all: [/price increase/i, /weren't told/i],
-    quote: [/price increase/i, /weren't told/i],
+    id: "surprise_price",
+    all: [/price went up/i, /weren't told/i],
+    quote: [/price went up/i, /weren't told/i],
     nps: 3,
     csat: 2,
     reason: (quotes) =>
-      `NPS 3 and CSAT 2 because a renewal price increase arrived with no prior notice to procurement. “${quotes[0]}” “${quotes[1]}”`,
+      `NPS 3 and CSAT 2 because the price went up and they weren't told first. “${quotes[0]}” “${quotes[1]}”`,
     nba: {
       referencePrefix: "COM",
-      title: "Assigned to commercial",
-      summary: "Assigned · increase held, written terms, 30 days to decide",
+      title: "Assigned to the accounts team",
+      summary: "Assigned · price rise held, written terms, 30 days to decide",
       detail:
-        "Commercial has the case. The price increase is held, current rates stay on the bill, written renewal terms are being sent, and the customer has 30 days to accept or renegotiate.",
-      team: "Commercial",
-      owner: "Account commercial desk",
+        "The accounts team has the case. The price rise is on hold, the current bill stays as it is, written terms are going out, and the customer has 30 days to accept or talk it through.",
+      team: "Accounts",
+      owner: "Accounts desk",
       status: "assigned",
       statusLabel: "Assigned",
     },
@@ -126,35 +126,35 @@ const ISSUES: Rule[] = [
     nps: 4,
     csat: 2,
     reason: (quotes) =>
-      `NPS 4 and CSAT 2 because the install was missed and nobody arrived for the booked windows. “${quotes[0]}”`,
+      `NPS 4 and CSAT 2 because nobody arrived for the install. “${quotes[0]}”`,
     nba: {
-      referencePrefix: "FLD",
-      title: "Escalated to field operations",
-      summary: "Escalated · priority rebook this week, install fee waived",
+      referencePrefix: "INS",
+      title: "Escalated to the install team",
+      summary: "Escalated · new install this week, install fee waived",
       detail:
-        "Field operations has been escalated. A priority install is booked inside this week and the install fee is waived because nobody arrived for the two windows the customer stood a team down for.",
-      team: "Field operations",
-      owner: "James Adeyemi, field control",
+        "The install team has been escalated. A new visit is booked this week and the install fee is waived because nobody arrived.",
+      team: "Installs",
+      owner: "James Adeyemi, install desk",
       status: "escalated",
       statusLabel: "Escalated",
     },
   },
   {
-    id: "provisioning_stall",
-    all: [/provisioning/i, /18 days/i, /still not live/i],
-    quote: [/18 days/i, /still not live/i],
+    id: "late_go_live",
+    all: [/three weeks late/i, /still not live/i],
+    quote: [/three weeks late/i, /still not live/i],
     nps: 4,
     csat: 2,
     reason: (quotes) =>
-      `NPS 4 and CSAT 2 because provisioning is 18 days past the ready-for-service date and the circuit is still not live. “${quotes[0]}” “${quotes[1]}”`,
+      `NPS 4 and CSAT 2 because the new office line is three weeks late and still not live. “${quotes[0]}” “${quotes[1]}”`,
     nba: {
-      referencePrefix: "PRV",
-      title: "Assigned to provisioning control",
-      summary: "Assigned · named owner, revised RFS today, callback booked",
+      referencePrefix: "SET",
+      title: "Assigned to the setup desk",
+      summary: "Assigned · named owner, new date today, callback booked",
       detail:
-        "Provisioning control has assigned a named owner, committed to issue a revised ready-for-service date today, and booked a callback to the managing director before close of business.",
-      team: "Provisioning control",
-      owner: "Tom Becker, provisioning control",
+        "The setup desk has named an owner, promised a new go-live date today, and booked a callback before the end of the day.",
+      team: "Setup",
+      owner: "Tom Becker, setup desk",
       status: "assigned",
       statusLabel: "Assigned",
     },
@@ -166,15 +166,155 @@ const ISSUES: Rule[] = [
     nps: 5,
     csat: 2,
     reason: (quotes) =>
-      `NPS 5 and CSAT 2 because the account manager didn't return repeated calls on a renewal. “${quotes[0]}” “${quotes[1]}”`,
+      `NPS 5 and CSAT 2 because the account manager didn't return the customer's calls. “${quotes[0]}” “${quotes[1]}”`,
     nba: {
       referencePrefix: "AMD",
       title: "Escalated to the account director",
-      summary: "Escalated · covering account manager, recovery meeting this week",
+      summary: "Escalated · covering account manager, meeting booked this week",
       detail:
-        "The account director has been escalated. A covering account manager is assigned and a recovery meeting is booked with the customer this week.",
+        "The account director has been escalated. A covering account manager is assigned and a meeting is booked with the customer this week.",
       team: "Account management",
       owner: "Account director",
+      status: "escalated",
+      statusLabel: "Escalated",
+    },
+  },
+  {
+    id: "double_charge",
+    all: [/charged us twice/i],
+    quote: [/charged us twice/i],
+    nps: 2,
+    csat: 1,
+    reason: (quotes) =>
+      `NPS 2 and CSAT 1 because the customer was charged twice for the same bill. “${quotes[0]}”`,
+    nba: {
+      referencePrefix: "DUP",
+      title: "Offer made by billing",
+      summary: "Offer made · the duplicate payment is being refunded today",
+      detail:
+        "Billing has started the refund of the duplicate payment today and will email the customer when it leaves the account.",
+      team: "Billing",
+      owner: "Helen Okonkwo, billing",
+      status: "offer_made",
+      statusLabel: "Offer made",
+    },
+  },
+  {
+    id: "unusable_slow",
+    all: [/slow connection/i, /unusable all week/i],
+    quote: [/slow connection/i, /unusable all week/i],
+    nps: 4,
+    csat: 1,
+    reason: (quotes) =>
+      `NPS 4 and CSAT 1 because the office has had a slow connection that was unusable all week. “${quotes[0]}” “${quotes[1]}”`,
+    nba: {
+      referencePrefix: "SPD",
+      title: "Assigned to support",
+      summary: "Assigned · engineer tomorrow morning at the office",
+      detail:
+        "Support has booked an engineer for tomorrow morning at the office and will call the customer with the arrival time today.",
+      team: "Support",
+      owner: "Ruth Nkosi, support",
+      status: "assigned",
+      statusLabel: "Assigned",
+    },
+  },
+  {
+    id: "missed_callback",
+    all: [/callback never came/i],
+    quote: [/callback never came/i],
+    nps: 5,
+    csat: 2,
+    reason: (quotes) =>
+      `NPS 5 and CSAT 2 because a promised callback never came. “${quotes[0]}”`,
+    nba: {
+      referencePrefix: "CBK",
+      title: "Assigned to the duty manager",
+      summary: "Assigned · duty manager calling within the hour",
+      detail:
+        "The duty manager is assigned to call the customer within the hour and stay on the case until it is closed.",
+      team: "Support",
+      owner: "Duty manager",
+      status: "assigned",
+      statusLabel: "Assigned",
+    },
+  },
+  {
+    id: "move_not_ready",
+    all: [/office move/i, /line was not ready/i],
+    quote: [/office move/i, /line was not ready/i],
+    nps: 3,
+    csat: 2,
+    reason: (quotes) =>
+      `NPS 3 and CSAT 2 because the line was not ready for the office move. “${quotes[0]}” “${quotes[1]}”`,
+    nba: {
+      referencePrefix: "MOV",
+      title: "Escalated to installs",
+      summary: "Escalated · install crew tomorrow, backup connection until then",
+      detail:
+        "Installs has been escalated. A crew is booked for tomorrow, and a backup connection is going in today so the office can work until the line is ready.",
+      team: "Installs",
+      owner: "James Adeyemi, install desk",
+      status: "escalated",
+      statusLabel: "Escalated",
+    },
+  },
+  {
+    id: "passed_around",
+    all: [/transferred me four times/i],
+    quote: [/transferred me four times/i],
+    nps: 6,
+    csat: 2,
+    reason: (quotes) =>
+      `NPS 6 and CSAT 2 because the customer was transferred four times and still has no owner. “${quotes[0]}”`,
+    nba: {
+      referencePrefix: "OWN",
+      title: "Assigned to one case owner",
+      summary: "Assigned · one person owns the case and will call back today",
+      detail:
+        "One case owner is now assigned. They will call the customer today and will not pass the call on again.",
+      team: "Support",
+      owner: "Sara Iqbal, case owner",
+      status: "assigned",
+      statusLabel: "Assigned",
+    },
+  },
+  {
+    id: "wrong_bill_total",
+    all: [/bill is wrong/i, /sites we closed/i],
+    quote: [/bill is wrong/i, /sites we closed/i],
+    nps: 3,
+    csat: 2,
+    reason: (quotes) =>
+      `NPS 3 and CSAT 2 because the bill still charges for sites the customer closed. “${quotes[0]}” “${quotes[1]}”`,
+    nba: {
+      referencePrefix: "FIX",
+      title: "Offer made by billing",
+      summary: "Offer made · closed sites removed and the difference credited",
+      detail:
+        "Billing has removed the closed sites from the account and is crediting the difference on the next bill. The customer will get the corrected bill by email today.",
+      team: "Billing",
+      owner: "Helen Okonkwo, billing",
+      status: "offer_made",
+      statusLabel: "Offer made",
+    },
+  },
+  {
+    id: "no_warning",
+    all: [/cut us off/i, /no warning/i],
+    quote: [/cut us off/i, /no warning/i],
+    nps: 1,
+    csat: 2,
+    reason: (quotes) =>
+      `NPS 1 and CSAT 2 because the office was cut off with no warning. “${quotes[0]}” “${quotes[1]}”`,
+    nba: {
+      referencePrefix: "CUT",
+      title: "Escalated to retentions",
+      summary: "Escalated · line turned back on, retentions calling to apologize",
+      detail:
+        "The line is being turned back on now. Retentions has been escalated to call, apologize for the cut-off with no warning, and confirm it will not happen again without a conversation.",
+      team: "Customer retentions",
+      owner: "Priya Shah, retentions lead",
       status: "escalated",
       statusLabel: "Escalated",
     },
@@ -182,23 +322,23 @@ const ISSUES: Rule[] = [
 ];
 
 const MILD: { re: RegExp; label: string }[] = [
-  { re: /proactive text/i, label: "no proactive notice" },
-  { re: /harder than it needs to be/i, label: "statement format" },
-  { re: /slightly under the committed rate/i, label: "rate shortfall" },
-  { re: /not yet enabled/i, label: "portal access still open" },
-  { re: /on hold for nine minutes/i, label: "queue time" },
-  { re: /still cautious/i, label: "confidence not restored" },
+  { re: /would have liked a text/i, label: "no warning before the outage" },
+  { re: /harder to read than it needs to be/i, label: "a bill that is hard to read" },
+  { re: /a bit slow at busy times/i, label: "a connection that is a bit slow when the office is busy" },
+  { re: /not yet enabled/i, label: "a login that is still not switched on" },
+  { re: /on hold for nine minutes/i, label: "a long wait on hold" },
+  { re: /still cautious/i, label: "they are not sure the fix will hold" },
 ];
 
 const STRONG = [
   /really pleased/i,
   /excellent/i,
-  /smooth handover/i,
-  /on the committed day/i,
+  /went smoothly/i,
+  /on the day you promised/i,
   /will renew/i,
   /spot on/i,
-  /signed the acceptance/i,
-  /intend to proceed/i,
+  /we signed off/i,
+  /we will go ahead/i,
 ];
 
 const CALM = [/appreciate the update/i, /that all makes sense/i];
@@ -238,6 +378,12 @@ export function isNegativeScore(nps: number, csat: number): boolean {
   return nps <= 6 || csat <= 2;
 }
 
+export function gaugeColor(amount: number): string {
+  const t = Math.min(1, Math.max(0, amount));
+  const hue = t < 0.45 ? 6 + (36 - 6) * (t / 0.45) : 36 + (142 - 36) * ((t - 0.45) / 0.55);
+  return `hsl(${hue.toFixed(0)} 68% 36%)`;
+}
+
 function referenceFor(prefix: string, id: string): string {
   const digits = id.replace(/\D/g, "");
   return `${prefix}-${digits}`;
@@ -262,16 +408,14 @@ export function analyzeTranscript(transcript: Transcript): Analysis {
 
   if (issue) {
     const quotes = linesMatching(lines, issue.quote);
-    const nps = issue.nps;
-    const csat = issue.csat;
     return {
       id: transcript.id,
       sentiment: "negative",
-      nps,
-      csat,
-      npsBand: npsBand(nps),
-      csatBand: csatBand(csat),
-      reason: quotes.length === issue.quote.length ? issue.reason(quotes) : issue.reason(quotes),
+      nps: issue.nps,
+      csat: issue.csat,
+      npsBand: npsBand(issue.nps),
+      csatBand: csatBand(issue.csat),
+      reason: issue.reason(quotes),
       quotes,
       nba: actionFrom(issue, transcript.id),
     };
@@ -304,7 +448,7 @@ export function analyzeTranscript(transcript: Transcript): Analysis {
       csat,
       npsBand: npsBand(nps),
       csatBand: csatBand(csat),
-      reason: `NPS ${nps} (promoter) and CSAT ${csat}. The customer described a clean business outcome: “${strongQuotes[0]}”`,
+      reason: `NPS ${nps} (promoter) and CSAT ${csat}. The customer described a clean result: “${strongQuotes[0]}”`,
       quotes: strongQuotes.slice(0, 2),
       nba: null,
     };

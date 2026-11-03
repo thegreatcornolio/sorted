@@ -43,7 +43,7 @@ export function CallDetail({
             <p className="meta">
               {transcript.contact}, {transcript.role}
               <br />
-              {transcript.circuit} · agent {transcript.agent}
+              {transcript.place} · agent {transcript.agent}
             </p>
           </div>
           <button type="button" className="icon-button" onClick={onClose}>

@@ -9,7 +9,7 @@ export default function ScoringPage() {
         <p className="kicker">Score model</p>
         <h1>How a transcript becomes a score and an action</h1>
         <p className="muted">
-          The desk does not transcribe audio. It reads a transcript that already exists and quotes the customer lines that moved the score. NPS is the number on the live chart. CSAT is shown on every call and in the average.
+          The desk does not transcribe audio. It reads a transcript that already exists and quotes the customer lines that moved the score. NPS and CSAT each have their own dial and line. The dial colour moves from red through amber to green as the running average rises.
         </p>
 
         <h2>NPS, 0 to 10</h2>
@@ -74,7 +74,7 @@ export default function ScoringPage() {
           Either a detractor NPS or a negative CSAT is enough. The action is specific to the lines that scored the call, and the status is already Escalated, Assigned, or Offer made.
         </p>
         <p>
-          Example: a logistics accounts payable manager says the statement arrived too late to pay, then credit control sent a demand for payment. That call scores at the bottom of NPS and CSAT. Opening it shows the case was escalated to the customer retentions team to call, apologize, and offer a 1% rebate on the next bill.
+          Example: a logistics finance manager says the statement arrived too late to pay, then the payments team sent a demand for payment. That call scores at the bottom of NPS and CSAT. Opening it shows the case was escalated to the customer retentions team to call, apologize, and offer a 1% rebate on the next bill.
         </p>
         <p>
           <Link href="/" className="card-go">

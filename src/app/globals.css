@@ -190,6 +190,41 @@ h1, h2, h3, .brand, .card-title {
 .desk-intro h1 { margin: 0 0 6px; font-size: clamp(1.6rem, 2vw, 2rem); }
 .desk-intro p { margin: 0; color: var(--muted); max-width: 70ch; }
 
+.status-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+  align-items: baseline;
+  margin: 16px 0 12px;
+  color: var(--muted);
+}
+.status-strip strong, .status-strip b {
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+.score-board { display: flex; flex-direction: column; gap: 14px; margin-bottom: 16px; }
+.score-row {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 12px;
+  align-items: stretch;
+}
+.dial-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  padding: 14px 14px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.dial { width: min(100%, 220px); height: auto; }
+.dial-caption { margin: 4px 0 0; color: var(--muted); font-size: 0.82rem; text-align: center; }
+.score-lines { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-top: 8px; }
+.score-line { font-family: var(--mono); font-weight: 700; font-size: 0.86rem; }
 .kpis {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -377,7 +412,7 @@ mark { background: #f6efb6; padding: 0 2px; }
 .table th { background: var(--navy); color: white; font-weight: 600; }
 
 @media (max-width: 860px) {
-  .card-grid, .desk-grid, .kpis { grid-template-columns: 1fr; }
+  .card-grid, .desk-grid, .kpis, .score-row { grid-template-columns: 1fr; }
   .kpis { grid-template-columns: 1fr 1fr; }
   .actions { position: static; order: -1; }
   .desk-grid { display: flex; flex-direction: column; }
