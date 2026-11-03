@@ -1,10 +1,13 @@
 import Link from "next/link";
+import { ReplayButton } from "@/components/ReplayButton";
 import { SiteHeader } from "@/components/SiteHeader";
 
 export default function ScoringPage() {
   return (
     <>
-      <SiteHeader current="scoring" />
+      <SiteHeader current="scoring">
+        <ReplayButton />
+      </SiteHeader>
       <article className="article">
         <p className="kicker">Score model</p>
         <h1>How an interaction becomes a score and an action</h1>
