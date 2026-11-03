@@ -54,8 +54,7 @@ h1, h2, h3, .brand, .card-title {
   padding: 14px 20px;
   background: var(--navy);
   color: white;
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 20;
 }
 .brand {
@@ -186,7 +185,7 @@ h1, h2, h3, .brand, .card-title {
 .icon-button { padding: 8px 12px; }
 
 .desk { padding-bottom: 48px; }
-.desk-intro { padding: 22px 0 8px; }
+.desk-intro { padding: 28px 0 16px; }
 .desk-intro h1 { margin: 0 0 6px; font-size: clamp(1.6rem, 2vw, 2rem); }
 .desk-intro p { margin: 0; color: var(--muted); max-width: 70ch; }
 
@@ -281,7 +280,7 @@ h1, h2, h3, .brand, .card-title {
 .swatch.detractor { background: var(--red); }
 .swatch.avg { background: var(--navy); }
 
-.actions { position: sticky; top: 76px; }
+.actions { position: sticky; top: 16px; }
 .action-list, .feed { display: flex; flex-direction: column; gap: 8px; padding: 12px; }
 .action-hit, .feed-hit {
   width: 100%;
