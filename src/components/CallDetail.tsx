@@ -87,7 +87,7 @@ export function CallDetail({
               <p>
                 <strong>{analysis.nba.title}.</strong> {analysis.nba.detail}
               </p>
-              <p className="meta">Triggered when this transcript was scored. This is not a suggestion waiting on a click.</p>
+              <p className="meta">Triggered when this interaction was scored. This is not a suggestion waiting on a click.</p>
               <dl>
                 <dt>Reference</dt>
                 <dd>{analysis.nba.reference}</dd>
