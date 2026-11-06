@@ -12,6 +12,7 @@ npm run dev
 - Customer interactions: http://localhost:3000 and https://sorted.trilogybpo.com/
 - Same desk: http://localhost:3000/nadclinic and https://sorted.trilogybpo.com/nadclinic/
 - Score model: http://localhost:3000/scoring
+- Sentiment Pulse, illustrative sample: http://localhost:3000/sentiment and https://sorted.trilogybpo.com/sentiment/
 
 `npm run build` writes a static site to `out/`. GitHub Pages publishes that build for the custom domain.
 
