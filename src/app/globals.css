@@ -57,9 +57,34 @@ h1, h2, h3, .brand, .card-title {
   position: relative;
   z-index: 20;
 }
+.header-mark {
+  display: flex;
+  align-items: center;
+  flex: none;
+  z-index: 1;
+}
+.header-mark img {
+  display: block;
+  height: 36px;
+  width: auto;
+}
+.header-mark .header-mark-on-light { display: none; }
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  z-index: 1;
+}
 .brand {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   display: flex;
   flex-direction: column;
+  align-items: center;
+  text-align: center;
   text-decoration: none;
   min-width: 8.5rem;
 }
@@ -84,7 +109,7 @@ h1, h2, h3, .brand, .card-title {
 }
 .site-nav a[aria-current="page"],
 .site-nav a:hover { background: rgba(97, 215, 121, 0.16); color: white; }
-.header-slot { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.header-slot { display: flex; align-items: center; gap: 10px; }
 
 .wrap { width: min(1120px, calc(100% - 32px)); margin: 0 auto; }
 .page { padding: 28px 0 64px; }
@@ -185,6 +210,7 @@ h1, h2, h3, .brand, .card-title {
 .icon-button { padding: 8px 12px; }
 
 .desk { padding-bottom: 48px; }
+.desk .pulse-board { margin-top: 4px; margin-bottom: 16px; }
 .desk-intro { padding: 28px 0 16px; }
 .desk-intro h1 { margin: 0 0 6px; font-size: clamp(1.6rem, 2vw, 2rem); }
 .desk-intro p { margin: 0; color: var(--muted); max-width: 70ch; }
@@ -453,8 +479,15 @@ mark { background: #f6efb6; padding: 0 2px; }
   .kpis { grid-template-columns: 1fr 1fr; }
   .actions { position: static; order: -1; }
   .desk-grid { display: flex; flex-direction: column; }
-  .site-header { flex-wrap: wrap; }
-  .header-slot { width: 100%; margin-left: 0; justify-content: space-between; }
+  .site-header { flex-wrap: wrap; row-gap: 8px; }
+  .site-header .brand {
+    position: static;
+    transform: none;
+    flex: 1 1 auto;
+    align-items: center;
+  }
+  .header-right { width: 100%; margin-left: 0; flex-wrap: wrap; }
+  .header-slot { width: 100%; justify-content: space-between; }
   .score-grid { grid-template-columns: 1fr; }
 }
 
@@ -787,7 +820,10 @@ mark { background: #f6efb6; padding: 0 2px; }
   }
   .pulse-page .site-nav { display: none !important; }
   .pulse-page .brand small { color: var(--green); }
-  .pulse-page .header-slot { width: auto; margin-left: auto; }
+  .pulse-page .header-mark .header-mark-on-dark { display: none; }
+  .pulse-page .header-mark .header-mark-on-light { display: block; height: 32px; }
+  .pulse-page .header-right { margin-left: auto; width: auto; }
+  .pulse-page .header-slot { width: auto; }
   .pulse-page .pulse-sample-pill { background: #e7f6ec; color: var(--green); }
   .pulse-page .pulse {
     background: white;
