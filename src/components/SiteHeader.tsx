@@ -5,7 +5,7 @@ export function SiteHeader({
   current,
   children,
 }: {
-  current?: "overview" | "interactions" | "scoring";
+  current?: "overview" | "interactions" | "scoring" | "sentiment";
   children?: ReactNode;
 }) {
   return (
@@ -25,6 +25,9 @@ export function SiteHeader({
         </Link>
         <Link href="/scoring" aria-current={current === "scoring" ? "page" : undefined}>
           Score model
+        </Link>
+        <Link href="/sentiment" aria-current={current === "sentiment" ? "page" : undefined}>
+          Sentiment
         </Link>
       </nav>
       {children ? <div className="header-slot">{children}</div> : null}
