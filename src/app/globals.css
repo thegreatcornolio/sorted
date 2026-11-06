@@ -486,6 +486,13 @@ mark { background: #f6efb6; padding: 0 2px; }
   gap: 8px 28px;
   align-items: center;
 }
+.trilogy-logo {
+  display: block;
+  height: 46px;
+  width: auto;
+  max-width: 100%;
+  margin: 0 0 18px;
+}
 .pulse-kicker {
   margin: 0 0 12px;
   font-family: var(--mono);
@@ -788,6 +795,7 @@ mark { background: #f6efb6; padding: 0 2px; }
   }
   .pulse-page .pulse-hero { padding-top: 8px; }
   .pulse-page .pulse-hero h1 { font-size: 3.15rem; }
+  .pulse-page .trilogy-logo { height: 38px; margin-bottom: 12px; }
   .pulse-page .pulse-hero-grid { grid-template-columns: minmax(0, 1.2fr) 210px; }
   .pulse-page .pulse-metrics { grid-template-columns: 1fr 1fr; }
   .pulse-page .pulse-split { grid-template-columns: minmax(0, 1.35fr) minmax(180px, 0.8fr); }
