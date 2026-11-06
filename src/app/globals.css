@@ -683,10 +683,13 @@ mark { background: #f6efb6; padding: 0 2px; }
   gap: 10px;
   font-size: 0.9rem;
 }
+.topic-row span, .driver-top span { min-width: 0; line-height: 1.3; }
 .topic-row strong, .driver-top strong {
+  flex: none;
   font-family: var(--mono);
   font-weight: 600;
 }
+.pulse-empty { margin: 0; color: var(--muted); font-size: 0.88rem; }
 .bar-track {
   height: 8px;
   margin-top: 5px;
