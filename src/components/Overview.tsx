@@ -6,6 +6,7 @@ import { companyNps } from "@/lib/analyze";
 import { useIngest } from "@/lib/ingest";
 import { allRows } from "@/lib/rows";
 import { ScoreDial } from "./ScoreDial";
+import { SentimentPulseCard } from "./SentimentPulseCard";
 import { SiteHeader } from "./SiteHeader";
 
 export function Overview() {
@@ -85,6 +86,7 @@ export function Overview() {
               </p>
             </section>
           </div>
+          <SentimentPulseCard />
           <section className="panel reason-panel" aria-label="Top reasons for bad NPS">
             <div className="panel-head">
               <h2>Top 5 reasons for bad NPS</h2>
