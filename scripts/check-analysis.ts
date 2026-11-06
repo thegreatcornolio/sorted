@@ -1,4 +1,6 @@
 import { analyzeTranscript, companyNps, isNegativeScore } from "../src/lib/analyze";
+import { pulseFrom, wholeShares } from "../src/lib/pulse";
+import { allRows } from "../src/lib/rows";
 import { transcripts } from "../src/lib/transcripts";
 
 const analyses = transcripts.map((transcript) => ({
@@ -103,6 +105,63 @@ const jargonHit = transcripts.find(
     item.lines.some((line) => jargon.test(line.text)),
 );
 if (jargonHit) failures.push(`${jargonHit.id} still uses fibre-desk language`);
+
+const queue = allRows();
+const pulse = pulseFrom(queue);
+const emptyPulse = pulseFrom([]);
+if (emptyPulse.total !== 0 || emptyPulse.series.length !== 0 || emptyPulse.evidence || emptyPulse.topics.length || emptyPulse.drivers.length) {
+  failures.push("empty queue still produced pulse figures");
+}
+if (pulse.total !== queue.length || pulse.series.length !== queue.length) failures.push("pulse series does not follow the queue");
+if (pulse.mix.positive + pulse.mix.neutral + pulse.mix.negative !== 100) failures.push("sentiment mix does not sum to 100");
+if (pulse.promoters !== queue.filter((row) => row.analysis.npsBand === "promoter").length) failures.push("promoter count drifted");
+if (pulse.detractors !== queue.filter((row) => row.analysis.npsBand === "detractor").length) failures.push("detractor count drifted");
+if (pulse.series.at(-1)?.positive !== pulse.mix.positive || pulse.series.at(-1)?.negative !== pulse.mix.negative) {
+  failures.push("movement chart does not end on the sentiment mix");
+}
+let seenPositive = 0;
+let seenNeutral = 0;
+let seenNegative = 0;
+queue.forEach((row, index) => {
+  if (row.analysis.sentiment === "positive") seenPositive += 1;
+  else if (row.analysis.sentiment === "negative") seenNegative += 1;
+  else seenNeutral += 1;
+  const [positiveShare, , negativeShare] = wholeShares([seenPositive, seenNeutral, seenNegative]);
+  const point = pulse.series[index];
+  if (!point || point.time !== row.transcript.callTime || point.positive !== positiveShare || point.negative !== negativeShare) {
+    failures.push(`movement point ${index} is not the running mix`);
+  }
+});
+const themeCounts = new Map<string, number>();
+for (const row of queue) {
+  if (row.analysis.sentiment !== "negative") continue;
+  if (!row.analysis.theme) failures.push(`${row.transcript.id} negative conversation has no theme`);
+  else themeCounts.set(row.analysis.theme, (themeCounts.get(row.analysis.theme) ?? 0) + 1);
+}
+for (const driver of pulse.drivers) {
+  const count = themeCounts.get(driver.label);
+  const expected = count && seenNegative ? Math.round((count / seenNegative) * 100) : null;
+  if (expected == null || driver.share !== expected) failures.push(`driver share for ${driver.label} is not the negative-conversation share`);
+}
+const leader = Math.max(0, ...themeCounts.values());
+if ((pulse.topics[0]?.count ?? 0) !== leader) failures.push("emerging topic is not the leading detractor reason");
+for (const topic of pulse.topics) {
+  if (themeCounts.get(topic.label) !== topic.count) failures.push(`topic ${topic.label} count is not the detractor count`);
+}
+if (!pulse.evidence) failures.push("full queue produced no detractor evidence");
+else {
+  const source = queue.find((row) => row.transcript.id === pulse.evidence?.id);
+  const customer = source?.transcript.lines.filter((line) => line.speaker === "Customer").map((line) => line.text) ?? [];
+  if (!source || source.analysis.npsBand !== "detractor" || !customer.includes(pulse.evidence.quote)) {
+    failures.push("evidence line is not a detractor customer line");
+  }
+  const latest = [...queue].reverse().find((row) => row.analysis.npsBand === "detractor" && row.analysis.quotes[0]);
+  if (latest?.transcript.id !== pulse.evidence.id) failures.push("evidence line is not the latest detractor");
+}
+const early = pulseFrom(queue.slice(0, 8));
+if (early.series.length !== 8 || early.promoters !== queue.slice(0, 8).filter((row) => row.analysis.npsBand === "promoter").length) {
+  failures.push("partial queue pulse does not follow arrivals");
+}
 
 if (failures.length) {
   console.error(failures.join("\n"));

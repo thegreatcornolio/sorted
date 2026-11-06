@@ -1,33 +1,15 @@
-const MIX = [
-  { key: "positive", label: "Positive", value: 58 },
-  { key: "neutral", label: "Neutral", value: 27 },
-  { key: "negative", label: "Negative", value: 15 },
-] as const;
+import { pulseFrom, type PulsePoint, type PulseView } from "@/lib/pulse";
+import type { Row } from "@/lib/rows";
 
-const TOPICS = [
-  { label: "Service delay", count: 18, width: 82, tone: "is-delay" },
-  { label: "Product fit", count: 11, width: 50, tone: "is-fit" },
-] as const;
+const TOPIC_TONE = ["is-delay", "is-fit"] as const;
+const DRIVER_TONE = ["is-resolution", "is-communication", "is-questions"] as const;
+const CHART = { width: 640, height: 220, min: 0, max: 100, padL: 32, padR: 36, padT: 14, padB: 28 };
 
-const DRIVERS = [
-  { label: "Resolution time", value: 46, tone: "is-resolution" },
-  { label: "Communication", value: 31, tone: "is-communication" },
-  { label: "Product questions", value: 18, tone: "is-questions" },
-] as const;
-
-const POSITIVE = [44, 46, 45, 47, 49, 51, 48, 50, 53, 55, 53, 56, 54, 57, 56, 57, 58];
-const NEGATIVE = [24, 22, 23, 21, 22, 25, 23, 20, 21, 18, 20, 19, 18, 17, 19, 16, 15];
-const DAYS = [
-  { index: 0, label: "Mon" },
-  { index: 4, label: "Tue" },
-  { index: 8, label: "Wed" },
-  { index: 12, label: "Thu" },
-  { index: 16, label: "Fri" },
-] as const;
-
-export function SentimentPulseCard() {
+export function SentimentPulseCard({ rows }: { rows: Row[] }) {
+  const pulse = pulseFrom(rows);
+  const note = pulse.total ? movementNote(pulse) : "";
   return (
-    <section className="pulse-board" aria-label="Sentiment Pulse illustrative view">
+    <section className="pulse-board" aria-label="Sentiment Pulse" data-testid="sentiment-pulse">
       <div className="pulse-board-head">
         <div className="pulse-dots" aria-hidden="true">
           <span />
@@ -35,24 +17,30 @@ export function SentimentPulseCard() {
           <span />
         </div>
         <h2>Sentiment Pulse</h2>
-        <span className="pulse-badge">Illustrative view</span>
+        <span className="pulse-badge">{pulse.total === 0 ? "Waiting" : `${pulse.total} ${pulse.total === 1 ? "interaction" : "interactions"}`}</span>
       </div>
 
       <div className="pulse-metrics">
         <article className="pulse-metric" aria-label="Sentiment mix">
           <p className="pulse-label">Sentiment mix</p>
-          <p className="mix-legend">
-            {MIX.map((item) => (
-              <span key={item.key} className={`is-${item.key}`}>
-                <i className="mix-dot" style={{ background: mixColor(item.key) }} aria-hidden="true" />
-                {item.label} <b>{item.value}%</b>
-              </span>
-            ))}
+          <p className="mix-legend" data-testid="pulse-mix">
+            <span className="is-positive">
+              <i className="mix-dot" style={{ background: "#1f6b34" }} aria-hidden="true" />
+              Positive <b>{pulse.total ? `${pulse.mix.positive}%` : "—"}</b>
+            </span>
+            <span className="is-neutral">
+              <i className="mix-dot" style={{ background: "#c4922a" }} aria-hidden="true" />
+              Neutral <b>{pulse.total ? `${pulse.mix.neutral}%` : "—"}</b>
+            </span>
+            <span className="is-negative">
+              <i className="mix-dot" style={{ background: "#8e2f2a" }} aria-hidden="true" />
+              Negative <b>{pulse.total ? `${pulse.mix.negative}%` : "—"}</b>
+            </span>
           </p>
           <div className="mix-bar" aria-hidden="true">
-            {MIX.map((item) => (
-              <span key={item.key} className={`is-${item.key}`} style={{ width: `${item.value}%` }} />
-            ))}
+            {pulse.mix.positive > 0 ? <span className="is-positive" style={{ width: `${pulse.mix.positive}%` }} /> : null}
+            {pulse.mix.neutral > 0 ? <span className="is-neutral" style={{ width: `${pulse.mix.neutral}%` }} /> : null}
+            {pulse.mix.negative > 0 ? <span className="is-negative" style={{ width: `${pulse.mix.negative}%` }} /> : null}
           </div>
         </article>
 
@@ -60,38 +48,54 @@ export function SentimentPulseCard() {
           <p className="pulse-label">NPS signals</p>
           <div className="nps-pair">
             <div>
-              <SignalArc sweep={0.8} color="#1f6b34" />
+              <SignalArc sweep={pulse.total ? pulse.promoters / pulse.total : 0} color="#1f6b34" />
               <span className="is-positive">Promoters</span>
-              <strong className="is-positive">64</strong>
+              <strong className="is-positive" data-testid="pulse-promoters">
+                {pulse.promoters}
+              </strong>
             </div>
             <div>
-              <SignalArc sweep={0.34} color="#8e2f2a" />
+              <SignalArc sweep={pulse.total ? pulse.detractors / pulse.total : 0} color="#8e2f2a" />
               <span className="is-negative">Detractors</span>
-              <strong className="is-negative">21</strong>
+              <strong className="is-negative" data-testid="pulse-detractors">
+                {pulse.detractors}
+              </strong>
             </div>
           </div>
         </article>
 
         <article className="pulse-metric" aria-label="Emerging topics">
           <p className="pulse-label">Emerging topics</p>
-          {TOPICS.map((topic) => (
-            <div key={topic.label} className="topic">
-              <div className="topic-row">
-                <span>{topic.label}</span>
-                <strong>{topic.count}</strong>
+          {pulse.topics.length === 0 ? (
+            <p className="pulse-empty">Topics appear when a detractor arrives.</p>
+          ) : (
+            pulse.topics.map((topic, index) => (
+              <div key={topic.label} className="topic" data-testid="pulse-topic" data-reason={topic.label}>
+                <div className="topic-row">
+                  <span>{topic.label}</span>
+                  <strong>{topic.count}</strong>
+                </div>
+                <div className="bar-track" aria-hidden="true">
+                  <span className={TOPIC_TONE[index] ?? "is-delay"} style={{ width: `${topic.width}%` }} />
+                </div>
               </div>
-              <div className="bar-track" aria-hidden="true">
-                <span className={topic.tone} style={{ width: `${topic.width}%` }} />
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </article>
 
         <article className="pulse-metric" aria-label="Evidence">
           <p className="pulse-label">Evidence</p>
           <p className="pulse-evidence">From conversation to business signal.</p>
-          <p className="pulse-quote">“I asked on Monday and I am still waiting for a straight answer.”</p>
-          <p className="meta pulse-quote-note">Illustrative line</p>
+          {pulse.evidence ? (
+            <>
+              <p className="pulse-quote" data-testid="pulse-quote">
+                “{pulse.evidence.quote}”
+              </p>
+              <p className="meta pulse-quote-note">{pulse.evidence.company}</p>
+            </>
+          ) : (
+            <p className="pulse-empty">A detractor line appears here when one arrives.</p>
+          )}
         </article>
       </div>
 
@@ -99,7 +103,7 @@ export function SentimentPulseCard() {
         <article className="pulse-chart" aria-labelledby="movement-heading">
           <div className="pulse-chart-head">
             <h3 id="movement-heading">Sentiment movement</h3>
-            <p>Recent period</p>
+            <p>As they arrive</p>
           </div>
           <div className="pulse-legend">
             <span>
@@ -109,92 +113,82 @@ export function SentimentPulseCard() {
               <i className="swatch detractor" aria-hidden="true" /> Negative sentiment
             </span>
           </div>
-          <MovementChart />
-          <p className="pulse-chart-note">
-            Friday closes at 58% positive and 15% negative. Neutral makes up the other 27%.
-          </p>
-          <table className="sr-only">
-            <caption>Illustrative sentiment by day. Not live client data.</caption>
-            <thead>
-              <tr>
-                <th>Day</th>
-                <th>Positive</th>
-                <th>Negative</th>
-              </tr>
-            </thead>
-            <tbody>
-              {DAYS.map((day) => (
-                <tr key={day.label}>
-                  <td>{day.label}</td>
-                  <td>{POSITIVE[day.index]}%</td>
-                  <td>{NEGATIVE[day.index]}%</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {pulse.series.length === 0 ? (
+            <p className="pulse-empty">Movement appears with the first interaction.</p>
+          ) : (
+            <MovementChart series={pulse.series} note={note} />
+          )}
+          {note ? <p className="pulse-chart-note">{note}</p> : null}
         </article>
 
         <article className="pulse-drivers" aria-labelledby="drivers-heading">
           <div className="pulse-drivers-head">
             <h3 id="drivers-heading">What’s driving it</h3>
           </div>
-          <p className="driver-note">Mentioned in negative conversations. A conversation can count more than once.</p>
-          {DRIVERS.map((driver) => (
-            <div key={driver.label} className="driver">
-              <div className="driver-top">
-                <span>{driver.label}</span>
-                <strong>{driver.value}%</strong>
+          <p className="driver-note">Share of negative conversations.</p>
+          {pulse.drivers.length === 0 ? (
+            <p className="pulse-empty">Shares appear when a negative conversation arrives.</p>
+          ) : (
+            pulse.drivers.map((driver, index) => (
+              <div key={driver.label} className="driver" data-testid="pulse-driver" data-reason={driver.label}>
+                <div className="driver-top">
+                  <span>{driver.label}</span>
+                  <strong>{driver.share}%</strong>
+                </div>
+                <div className="bar-track" aria-hidden="true">
+                  <span className={DRIVER_TONE[index] ?? "is-resolution"} style={{ width: `${driver.share}%` }} />
+                </div>
               </div>
-              <div className="bar-track" aria-hidden="true">
-                <span className={driver.tone} style={{ width: `${driver.value}%` }} />
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </article>
       </div>
     </section>
   );
 }
 
-function mixColor(key: "positive" | "neutral" | "negative") {
-  if (key === "positive") return "#1f6b34";
-  if (key === "neutral") return "#c4922a";
-  return "#8e2f2a";
+function movementNote(pulse: PulseView): string {
+  const noun = pulse.total === 1 ? "interaction" : "interactions";
+  const base = `After ${pulse.total} ${noun}, positive is ${pulse.mix.positive}% and negative is ${pulse.mix.negative}%.`;
+  if (pulse.mix.neutral === 0) return base;
+  return `${base} Neutral makes up the other ${pulse.mix.neutral}%.`;
 }
 
 function SignalArc({ sweep, color }: { sweep: number; color: string }) {
   const radius = 16;
   const turn = 2 * Math.PI * radius;
+  const clamped = Math.max(0, Math.min(1, sweep));
   return (
     <svg className="signal-arc" viewBox="0 0 44 44" aria-hidden="true">
-      <circle
-        cx="22"
-        cy="22"
-        r={radius}
-        fill="none"
-        stroke={color}
-        strokeWidth="4"
-        strokeLinecap="round"
-        strokeDasharray={`${(sweep * turn).toFixed(2)} ${turn.toFixed(2)}`}
-        transform="rotate(210 22 22)"
-      />
+      <circle cx="22" cy="22" r={radius} fill="none" stroke="#e4ebf1" strokeWidth="4" />
+      {clamped > 0 ? (
+        <circle
+          cx="22"
+          cy="22"
+          r={radius}
+          fill="none"
+          stroke={color}
+          strokeWidth="4"
+          strokeLinecap="round"
+          strokeDasharray={`${(clamped * turn).toFixed(2)} ${turn.toFixed(2)}`}
+          transform="rotate(210 22 22)"
+        />
+      ) : null}
     </svg>
   );
 }
 
-const CHART = { width: 640, height: 220, min: 0, max: 80, padL: 36, padR: 54, padT: 12, padB: 28 };
-
-function chartPoint(values: number[], index: number): [number, number] {
+function pointAt(series: PulsePoint[], index: number, key: "positive" | "negative"): [number, number] {
   const plotRight = CHART.width - CHART.padR;
   const innerW = plotRight - CHART.padL;
   const innerH = CHART.height - CHART.padT - CHART.padB;
-  const x = CHART.padL + (index / (values.length - 1)) * innerW;
-  const y = CHART.padT + ((CHART.max - values[index]) / (CHART.max - CHART.min)) * innerH;
+  const x = series.length === 1 ? CHART.padL + innerW / 2 : CHART.padL + (index / (series.length - 1)) * innerW;
+  const y = CHART.padT + ((CHART.max - series[index][key]) / (CHART.max - CHART.min)) * innerH;
   return [x, y];
 }
 
-function smoothPath(values: number[]) {
-  const points = values.map((_, index) => chartPoint(values, index));
+function smoothPath(series: PulsePoint[], key: "positive" | "negative") {
+  const points = series.map((_, index) => pointAt(series, index, key));
   const [start] = points;
   let path = `M ${start[0].toFixed(2)} ${start[1].toFixed(2)}`;
   for (let index = 0; index < points.length - 1; index += 1) {
@@ -211,43 +205,87 @@ function smoothPath(values: number[]) {
   return path;
 }
 
-function MovementChart() {
-  const ticks = [20, 40, 60, 80];
+function labelIndexes(length: number): number[] {
+  if (length <= 1) return length === 1 ? [0] : [];
+  if (length <= 5) return Array.from({ length }, (_, index) => index);
+  return [...new Set([0, 0.25, 0.5, 0.75, 1].map((slot) => Math.round(slot * (length - 1))))];
+}
+
+function MovementChart({ series, note }: { series: PulsePoint[]; note: string }) {
+  const ticks = [0, 25, 50, 75, 100];
   const yFor = (value: number) => {
     const innerH = CHART.height - CHART.padT - CHART.padB;
     return CHART.padT + ((CHART.max - value) / (CHART.max - CHART.min)) * innerH;
   };
   const plotRight = CHART.width - CHART.padR;
-  const positiveEnd = chartPoint(POSITIVE, POSITIVE.length - 1);
-  const negativeEnd = chartPoint(NEGATIVE, NEGATIVE.length - 1);
+  const positiveEnd = pointAt(series, series.length - 1, "positive");
+  const negativeEnd = pointAt(series, series.length - 1, "negative");
+  const last = series[series.length - 1];
+  let positiveLabelY = positiveEnd[1] + 4;
+  let negativeLabelY = negativeEnd[1] + 4;
+  if (Math.abs(positiveLabelY - negativeLabelY) < 12) {
+    if (positiveLabelY <= negativeLabelY) {
+      positiveLabelY -= 6;
+      negativeLabelY += 6;
+    } else {
+      positiveLabelY += 6;
+      negativeLabelY -= 6;
+    }
+  }
   return (
-    <svg viewBox={`0 0 ${CHART.width} ${CHART.height}`} role="img" aria-label="Illustrative week. Positive sentiment rises from 44 on Monday to 58 on Friday. Negative sentiment falls from 24 to 15.">
-      {ticks.map((tick) => (
-        <g key={tick}>
-          <line x1={CHART.padL} x2={plotRight} y1={yFor(tick)} y2={yFor(tick)} stroke="#e4ebf1" strokeWidth="1" />
-          <text x="4" y={yFor(tick) + 4} fill="#5c6874" fontSize="11" fontFamily="ui-monospace, monospace">
-            {tick}
-          </text>
-        </g>
-      ))}
-      <path d={smoothPath(POSITIVE)} fill="none" stroke="#1f6b34" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
-      <path d={smoothPath(NEGATIVE)} fill="none" stroke="#8e2f2a" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
-      <circle cx={positiveEnd[0]} cy={positiveEnd[1]} r="3.5" fill="#1f6b34" />
-      <circle cx={negativeEnd[0]} cy={negativeEnd[1]} r="3.5" fill="#8e2f2a" />
-      <text x={positiveEnd[0] + 8} y={positiveEnd[1] + 4} fill="#1f6b34" fontSize="12" fontFamily="ui-monospace, monospace">
-        58
-      </text>
-      <text x={negativeEnd[0] + 8} y={negativeEnd[1] + 4} fill="#8e2f2a" fontSize="12" fontFamily="ui-monospace, monospace">
-        15
-      </text>
-      {DAYS.map((day) => {
-        const [x] = chartPoint(POSITIVE, day.index);
-        return (
-          <text key={day.label} x={x} y={CHART.height - 6} textAnchor="middle" fill="#5c6874" fontSize="11" fontFamily="ui-monospace, monospace">
-            {day.label}
-          </text>
-        );
-      })}
-    </svg>
+    <>
+      <svg viewBox={`0 0 ${CHART.width} ${CHART.height}`} role="img" aria-label={note}>
+        {ticks.map((tick) => (
+          <g key={tick}>
+            <line x1={CHART.padL} x2={plotRight} y1={yFor(tick)} y2={yFor(tick)} stroke="#e4ebf1" strokeWidth="1" />
+            <text x="4" y={yFor(tick) + 4} fill="#5c6874" fontSize="11" fontFamily="ui-monospace, monospace">
+              {tick}
+            </text>
+          </g>
+        ))}
+        {series.length > 1 ? (
+          <>
+            <path d={smoothPath(series, "positive")} fill="none" stroke="#1f6b34" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+            <path d={smoothPath(series, "negative")} fill="none" stroke="#8e2f2a" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+          </>
+        ) : null}
+        <circle cx={positiveEnd[0]} cy={positiveEnd[1]} r="3.5" fill="#1f6b34" />
+        <circle cx={negativeEnd[0]} cy={negativeEnd[1]} r="3.5" fill="#8e2f2a" />
+        <text x={positiveEnd[0] + 8} y={positiveLabelY} fill="#1f6b34" fontSize="12" fontFamily="ui-monospace, monospace">
+          {last.positive}
+        </text>
+        <text x={negativeEnd[0] + 8} y={negativeLabelY} fill="#8e2f2a" fontSize="12" fontFamily="ui-monospace, monospace">
+          {last.negative}
+        </text>
+        {labelIndexes(series.length).map((index) => {
+          const [x] = pointAt(series, index, "positive");
+          const anchor = series.length === 1 ? "middle" : index === 0 ? "start" : index === series.length - 1 ? "end" : "middle";
+          return (
+            <text key={series[index].time + index} x={x} y={CHART.height - 6} textAnchor={anchor} fill="#5c6874" fontSize="11" fontFamily="ui-monospace, monospace">
+              {series[index].time}
+            </text>
+          );
+        })}
+      </svg>
+      <table className="sr-only">
+        <caption>{note}</caption>
+        <thead>
+          <tr>
+            <th>Arrival</th>
+            <th>Positive</th>
+            <th>Negative</th>
+          </tr>
+        </thead>
+        <tbody>
+          {series.map((point, index) => (
+            <tr key={`${point.time}-${index}`}>
+              <td>{point.time}</td>
+              <td>{point.positive}%</td>
+              <td>{point.negative}%</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
   );
 }

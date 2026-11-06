@@ -86,7 +86,7 @@ export function Overview() {
               </p>
             </section>
           </div>
-          <SentimentPulseCard />
+          <SentimentPulseCard rows={visible} />
           <section className="panel reason-panel" aria-label="Top reasons for bad NPS">
             <div className="panel-head">
               <h2>Top 5 reasons for bad NPS</h2>
