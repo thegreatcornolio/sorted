@@ -62,6 +62,7 @@ export default function SentimentPage() {
         <section className="pulse-hero">
           <div className="wrap pulse-hero-grid">
             <div>
+              <img className="trilogy-logo" src="/trilogy-logo.png" alt="Trilogy" width={4160} height={920} />
               <p className="pulse-kicker">Introducing a new customer signal</p>
               <h1>
                 <span>Sentiment</span>
