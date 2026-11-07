@@ -1,0 +1,22 @@
+{
+  "name": "sorted-functions",
+  "private": true,
+  "version": "0.1.0",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "npm run build && func start",
+    "once": "tsx src/once.ts",
+    "upload": "tsx src/uploadServer.ts",
+    "check": "node --import tsx --test src/*.test.ts"
+  },
+  "dependencies": {
+    "@azure/functions": "^4.6.0",
+    "@azure/storage-blob": "^12.26.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}
