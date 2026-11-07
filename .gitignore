@@ -5,5 +5,3 @@ out
 *.log
 *.tsbuildinfo
 next-env.d.ts
-functions/dist
-functions/local.settings.json

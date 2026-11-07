@@ -21,9 +21,9 @@ export async function openStores(connectionString: string): Promise<{ incoming: 
   const processed = service.getContainerClient(PROCESSED_CONTAINER);
   try {
     if (!(await incoming.exists())) throw new Error(`Blob container ${INCOMING_CONTAINER} does not exist.`);
-    await processed.createIfNotExists();
+    if (!(await processed.exists())) throw new Error(`Blob container ${PROCESSED_CONTAINER} does not exist.`);
   } catch (error) {
-    if (error instanceof Error && error.message === `Blob container ${INCOMING_CONTAINER} does not exist.`) throw error;
+    if (error instanceof Error && error.message.startsWith("Blob container ")) throw error;
     const message = error instanceof Error && error.message.trim() ? error.message.trim() : "Storage could not be reached.";
     throw new Error(message);
   }
