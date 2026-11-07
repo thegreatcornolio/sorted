@@ -7,6 +7,7 @@
     "build": "tsc",
     "start": "npm run build && func start",
     "once": "tsx src/once.ts",
+    "upload": "tsx src/uploadServer.ts",
     "check": "node --import tsx --test src/*.test.ts"
   },
   "dependencies": {

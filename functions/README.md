@@ -18,3 +18,13 @@ npm start
 `npm start` needs Azure Functions Core Tools v4. It builds the function and starts the Functions host on its own port. The timer reads `incomingtranscripts` once a minute, and also once when the host starts. `POST http://localhost:7071/api/score-transcripts` scores one pass on that host. The host prints the function key that request needs. That address is not a route on the website.
 
 `npm run once` scores one pass without the Functions host. Run it from this folder so it can read `local.settings.json`. It uses the same connection string and does not deploy anything.
+
+## Upload page
+
+The upload page lives in this folder. It is not a route on sorted.trilogybpo.com, and GitHub Pages does not publish it.
+
+```bash
+npm run upload
+```
+
+Open http://127.0.0.1:8787/ and choose transcript files. The page sends those files only to that local server. The server reads `SORTED_STORAGE_CONNECTION_STRING` from the environment or from `local.settings.json`, stores the files in `incomingtranscripts`, and runs the same scoring pass. Successes move to `processedtranscripts`. The page source does not contain the storage key.
