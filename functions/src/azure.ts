@@ -1,13 +1,22 @@
 import { BlobServiceClient, type ContainerClient } from "@azure/storage-blob";
 import { CONNECTION_SETTING, INCOMING_CONTAINER, PROCESSED_CONTAINER } from "./layout";
-import { scoreIncoming, type ScoreSummary } from "./run";
+import { scoreIncoming, scoreOne, type ScoreSummary } from "./run";
 import type { TranscriptStore } from "./store";
 
 export async function scoreIncomingFromEnv(): Promise<ScoreSummary> {
+  const { incoming, processed } = await openStores(requiredConnection());
+  return scoreIncoming(incoming, processed);
+}
+
+export async function scoreDroppedBlob(name: string, bytes: Buffer): Promise<void> {
+  const { incoming, processed } = await openStores(requiredConnection());
+  await scoreOne(incoming, processed, name, bytes);
+}
+
+function requiredConnection(): string {
   const connection = process.env[CONNECTION_SETTING]?.trim();
   if (!connection) throw new Error(`${CONNECTION_SETTING} is not set.`);
-  const { incoming, processed } = await openStores(connection);
-  return scoreIncoming(incoming, processed);
+  return connection;
 }
 
 export async function openStores(connectionString: string): Promise<{ incoming: TranscriptStore; processed: TranscriptStore }> {

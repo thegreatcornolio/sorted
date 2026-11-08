@@ -16,36 +16,53 @@ export async function scoreIncoming(
   const summary: ScoreSummary = { scored: [], failed: [] };
   for (const blob of listed) {
     if (blob.name.endsWith("/")) continue;
-    let name: string;
+    let bytes: Buffer;
     try {
-      name = transcriptName(blob.name);
+      bytes = await incoming.read(blob.name);
     } catch (error) {
       summary.failed.push({ file: blob.name, error: messageOf(error) });
       continue;
     }
-    const resultName = `${RESULTS_PREFIX}${name}.json`;
-    const errorName = `${RESULTS_PREFIX}${name}.error.json`;
-    try {
-      const bytes = await incoming.read(name);
-      const score = scoreTranscript(name, bytes);
-      await processed.write(resultName, jsonBuffer(resultBody(score, now().toISOString())), "application/json; charset=utf-8");
-      try {
-        await processed.write(name, bytes, contentType(name));
-        await incoming.remove(name);
-      } catch (error) {
-        await writeError(processed, errorName, name, messageOf(error), now().toISOString());
-        summary.failed.push({ file: name, error: messageOf(error) });
-        continue;
-      }
-      await processed.remove(errorName);
-      summary.scored.push(name);
-    } catch (error) {
-      const message = messageOf(error);
-      await writeError(processed, errorName, name, message, now().toISOString());
-      summary.failed.push({ file: name, error: message });
-    }
+    const outcome = await scoreOne(incoming, processed, blob.name, bytes, now);
+    if (outcome.status === "scored") summary.scored.push(outcome.file);
+    else summary.failed.push({ file: outcome.file, error: outcome.error });
   }
   return summary;
+}
+
+export async function scoreOne(
+  incoming: TranscriptStore,
+  processed: TranscriptStore,
+  name: string,
+  bytes: Buffer,
+  now: () => Date = () => new Date(),
+): Promise<{ status: "scored"; file: string } | { status: "failed"; file: string; error: string }> {
+  let safe: string;
+  try {
+    safe = transcriptName(name);
+  } catch (error) {
+    return { status: "failed", file: name, error: messageOf(error) };
+  }
+  const resultName = `${RESULTS_PREFIX}${safe}.json`;
+  const errorName = `${RESULTS_PREFIX}${safe}.error.json`;
+  try {
+    const score = scoreTranscript(safe, bytes);
+    await processed.write(resultName, jsonBuffer(resultBody(score, now().toISOString())), "application/json; charset=utf-8");
+    try {
+      await processed.write(safe, bytes, contentType(safe));
+      await incoming.remove(safe);
+    } catch (error) {
+      const message = messageOf(error);
+      await writeError(processed, errorName, safe, message, now().toISOString());
+      return { status: "failed", file: safe, error: message };
+    }
+    await processed.remove(errorName);
+    return { status: "scored", file: safe };
+  } catch (error) {
+    const message = messageOf(error);
+    await writeError(processed, errorName, safe, message, now().toISOString());
+    return { status: "failed", file: safe, error: message };
+  }
 }
 
 export function transcriptName(name: string): string {
@@ -81,11 +98,7 @@ function jsonBuffer(value: unknown): Buffer {
 }
 
 async function writeError(processed: TranscriptStore, name: string, file: string, error: string, failedAt: string): Promise<void> {
-  try {
-    await processed.write(name, jsonBuffer({ file, error, failedAt }), "application/json; charset=utf-8");
-  } catch {
-    // The source stays in incomingtranscripts. A later pass can write the error.
-  }
+  await processed.write(name, jsonBuffer({ file, error, failedAt }), "application/json; charset=utf-8");
 }
 
 function messageOf(error: unknown): string {

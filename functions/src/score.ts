@@ -1,3 +1,5 @@
+import { MAX_TRANSCRIPT_BYTES } from "./layout";
+
 export type Sentiment = "positive" | "mixed" | "negative";
 
 export type NpsBand = "promoter" | "passive" | "detractor";
@@ -19,11 +21,13 @@ type Parsed = {
   company: string | null;
   score: number | null;
   lines: Spoken[];
+  fromCall: boolean;
 };
 
-const MAX_BYTES = 1_048_576;
-
 const THEMES: { reason: string; pattern: RegExp }[] = [
+  { reason: "They wanted to cancel", pattern: /\bcancel/i },
+  { reason: "The price of the cover", pattern: /premium|too expensive|can't afford|cannot afford/i },
+  { reason: "A claim or payout", pattern: /\bclaim\b|payout|pay out/i },
   { reason: "A refund that is missing or short", pattern: /refund|money back|short of the full/i },
   {
     reason: "A bill, fee, or charge that should not be there",
@@ -78,6 +82,14 @@ const NEGATIVE = [
   /\bappalling\b/i,
   /\bwaste of time\b/i,
   /\bnever arrived\b/i,
+  /\bcancel/i,
+  /\btoo expensive\b/i,
+  /\bcan't afford\b/i,
+  /\bcannot afford\b/i,
+  /\bnot interested\b/i,
+  /\bdenied\b/i,
+  /\bmisleading\b/i,
+  /\bpressured\b/i,
 ];
 
 const POSITIVE = [
@@ -101,16 +113,26 @@ const POSITIVE = [
   /\bdelighted\b/i,
   /\bresolved\b/i,
   /\bgreat\b/i,
+  /\bgo ahead\b/i,
+  /\bsounds good\b/i,
+  /\bi'll take it\b/i,
+  /\bhappy to proceed\b/i,
 ];
 
-const MILD = [/still cautious/i, /waiting to see/i];
+const MILD = [/still cautious/i, /waiting to see/i, /think about it/i, /not sure/i, /maybe later/i, /still deciding/i];
+
+const DRIVERS: { reason: string; pattern: RegExp }[] = [
+  { reason: "They were ready to go ahead", pattern: /go ahead|i'll take it|happy to proceed|sounds good/i },
+  { reason: "They were pleased with the call", pattern: /pleased|thank you|excellent|helpful|great/i },
+  { reason: "They were still deciding", pattern: /think about it|not sure|maybe later|still deciding|still cautious|waiting to see/i },
+];
 
 const SCORE_LINE = /^\s*(?:nps|score)(?:\s*[:=]\s*|\s+)(\d{1,2})(?:\s*\/\s*10)?\s*$/i;
 const COMPANY_LINE = /^\s*company\s*:\s*(.+?)\s*$/i;
 const SPEAKER_LINE = /^\s*(customer|agent|advisor|caller)\s*:\s*(.*)$/i;
 
 export function scoreTranscript(file: string, bytes: Buffer): TranscriptScore {
-  if (bytes.length > MAX_BYTES) throw new Error("File is too large to score.");
+  if (bytes.length > MAX_TRANSCRIPT_BYTES) throw new Error("File is too large to score.");
   if (bytes.includes(0)) throw new Error("File is not text.");
   const text = new TextDecoder("utf-8", { fatal: false }).decode(bytes).replace(/^\uFEFF/, "");
   if (!text.trim()) throw new Error("Transcript is empty.");
@@ -127,9 +149,23 @@ function scoreParsed(file: string, parsed: Parsed): TranscriptScore {
   const lines = linesToScore(parsed.lines);
   if (!lines.length) throw new Error("Transcript is empty.");
   const sentiment = sentimentOf(lines);
+  const corpus = lines.map((line) => line.text).join("\n");
+  if (parsed.fromCall) {
+    const band = bandFromLanguage(sentiment);
+    const reason = reasonFor(band, corpus);
+    return {
+      file,
+      sentiment,
+      mix: mixFor(sentiment),
+      nps: null,
+      npsBand: band,
+      reason,
+      evidence: quoteFrom(corpus, band, reason),
+      company: parsed.company,
+    };
+  }
   const nps = parsed.score;
   const band = nps == null ? null : npsBand(nps);
-  const corpus = lines.map((line) => line.text).join("\n");
   const reason = band === "detractor" ? detractorReason(corpus) : null;
   return {
     file,
@@ -141,6 +177,48 @@ function scoreParsed(file: string, parsed: Parsed): TranscriptScore {
     evidence: evidenceFor(lines, sentiment, reason),
     company: parsed.company,
   };
+}
+
+function bandFromLanguage(sentiment: Sentiment): NpsBand {
+  if (sentiment === "negative") return "detractor";
+  if (sentiment === "positive") return "promoter";
+  return "passive";
+}
+
+function reasonFor(band: NpsBand, text: string): string {
+  if (band === "detractor") return detractorReason(text);
+  for (const driver of DRIVERS) {
+    if (driver.pattern.test(text)) return driver.reason;
+  }
+  return band === "promoter" ? "They were pleased with the call" : "They were still deciding";
+}
+
+function quoteFrom(text: string, band: NpsBand, reason: string): string {
+  const parts = text
+    .split(/(?<=[.!?])\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const sentences = parts.length ? parts : [text.trim()];
+  const theme = [...THEMES, ...DRIVERS].find((item) => item.reason === reason);
+  const matched = theme ? sentences.find((part) => theme.pattern.test(part)) : undefined;
+  if (matched) return clipQuote(text, matched);
+  const ranked = sentences.map((part) => ({ part, ...lineSignal(part) }));
+  const best =
+    band === "detractor"
+      ? [...ranked].sort((a, b) => b.negative - a.negative || a.part.length - b.part.length)[0]
+      : band === "promoter"
+        ? [...ranked].sort((a, b) => b.positive - a.positive || a.part.length - b.part.length)[0]
+        : (ranked.find((part) => part.negative > 0 && part.positive > 0) ?? ranked[0]);
+  return clipQuote(text, best?.part ?? text.trim());
+}
+
+function clipQuote(source: string, quote: string): string {
+  const found = source.includes(quote) ? quote : source.trim();
+  if (found.length <= 280) return found;
+  const slice = found.slice(0, 280);
+  const space = slice.lastIndexOf(" ");
+  const cut = (space > 200 ? slice.slice(0, space) : slice).trimEnd();
+  return source.includes(cut) ? cut : source.slice(0, 280);
 }
 
 function mixFor(sentiment: Sentiment): TranscriptScore["mix"] {
@@ -238,19 +316,33 @@ function parseJson(text: string): Parsed {
   if (Array.isArray(data)) {
     const lines = readLines(data);
     if (!lines.length) throw new Error("Transcript is empty.");
-    return { company: null, score: null, lines };
+    return { company: null, score: null, lines, fromCall: false };
   }
   if (!data || typeof data !== "object") throw new Error("File is not a transcript.");
   const record = data as Record<string, unknown>;
+  if (isAsrCall(record)) {
+    return { company: null, score: null, fromCall: true, lines: [{ speaker: null, text: record.text.trim() }] };
+  }
   const company = stringField(record.company);
   const score = readScore(record);
   const lines = Array.isArray(record.lines) ? readLines(record.lines) : [];
-  if (lines.length) return { company, score, lines };
+  if (lines.length) return { company, score, lines, fromCall: false };
   const body = typeof record.text === "string" ? record.text : typeof record.transcript === "string" ? record.transcript : "";
   if (!body.trim()) throw new Error("Transcript is empty.");
   const plain = parsePlain(body);
   if (score != null && plain.score != null && score !== plain.score) throw new Error("The file has more than one score.");
-  return { company: company ?? plain.company, score: score ?? plain.score, lines: plain.lines };
+  return { company: company ?? plain.company, score: score ?? plain.score, lines: plain.lines, fromCall: false };
+}
+
+function isAsrCall(record: Record<string, unknown>): record is { text: string } {
+  return (
+    typeof record.text === "string" &&
+    record.text.trim().length > 0 &&
+    Array.isArray(record.words) &&
+    "audio_duration" in record &&
+    "confidence" in record &&
+    "redacted_pii_policies" in record
+  );
 }
 
 function readLines(value: unknown[]): Spoken[] {
@@ -323,5 +415,5 @@ function parsePlain(text: string): Parsed {
     if (trimmed) lines.push({ speaker: null, text: trimmed });
   }
   if (!lines.length) throw new Error("Transcript is empty.");
-  return { company, score, lines };
+  return { company, score, lines, fromCall: false };
 }

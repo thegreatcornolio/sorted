@@ -1,38 +1,52 @@
 import { extname } from "node:path";
-import { scoreIncoming, transcriptName, type ScoreSummary } from "./run";
+import { MAX_TRANSCRIPT_BYTES, RESULTS_PREFIX } from "./layout";
+import { transcriptName } from "./run";
 import type { TranscriptStore } from "./store";
 
-const MAX_BYTES = 1_048_576;
 const ALLOWED = new Set([".txt", ".text", ".md", ".json", ""]);
 
 export type UploadFile = { name: string; bytes: Buffer; contentType: string };
 
-export type UploadResult = ScoreSummary & {
+export type UploadReceipt = {
   uploaded: string[];
   rejected: { file: string; error: string }[];
 };
 
-export async function uploadThenScore(
-  incoming: TranscriptStore,
-  processed: TranscriptStore,
-  files: UploadFile[],
-  now: () => Date = () => new Date(),
-): Promise<UploadResult> {
+export type TranscriptProgress = {
+  file: string;
+  state: "processing" | "scored" | "failed";
+  error: string | null;
+  result: unknown;
+};
+
+export async function uploadFiles(incoming: TranscriptStore, files: UploadFile[]): Promise<UploadReceipt> {
   const uploaded: string[] = [];
-  const rejected: UploadResult["rejected"] = [];
+  const rejected: UploadReceipt["rejected"] = [];
   for (const file of files) {
     try {
       const name = transcriptFileName(file.name);
-      if (file.bytes.length > MAX_BYTES) throw new Error("File is too large to score.");
+      if (file.bytes.length > MAX_TRANSCRIPT_BYTES) throw new Error("File is too large to score.");
       await incoming.write(name, file.bytes, contentTypeFor(name, file.contentType));
       uploaded.push(name);
     } catch (error) {
       rejected.push({ file: file.name || "(unnamed)", error: messageOf(error) });
     }
   }
-  if (!uploaded.length) return { uploaded, rejected, scored: [], failed: [] };
-  const summary = await scoreIncoming(incoming, processed, now);
-  return { uploaded, rejected, scored: summary.scored, failed: summary.failed };
+  return { uploaded, rejected };
+}
+
+export async function watchTranscript(incoming: TranscriptStore, processed: TranscriptStore, name: string): Promise<TranscriptProgress> {
+  const safe = transcriptFileName(name);
+  const errorText = await readOptional(processed, `${RESULTS_PREFIX}${safe}.error.json`);
+  if (errorText) {
+    const parsed = parseJson(errorText);
+    const error = parsed && typeof parsed.error === "string" ? parsed.error : "Scoring failed.";
+    return { file: safe, state: "failed", error, result: null };
+  }
+  const resultText = await readOptional(processed, `${RESULTS_PREFIX}${safe}.json`);
+  if (resultText) return { file: safe, state: "scored", error: null, result: parseJson(resultText) };
+  await readOptional(incoming, safe);
+  return { file: safe, state: "processing", error: null, result: null };
 }
 
 export function transcriptFileName(name: string): string {
@@ -48,6 +62,23 @@ function contentTypeFor(name: string, supplied: string): string {
   if (name.endsWith(".json")) return "application/json; charset=utf-8";
   if (name.endsWith(".md")) return "text/markdown; charset=utf-8";
   return "text/plain; charset=utf-8";
+}
+
+async function readOptional(store: TranscriptStore, name: string): Promise<string | null> {
+  try {
+    return (await store.read(name)).toString("utf8");
+  } catch {
+    return null;
+  }
+}
+
+function parseJson(text: string): { error?: unknown } | null {
+  try {
+    const value = JSON.parse(text) as { error?: unknown };
+    return value && typeof value === "object" ? value : null;
+  } catch {
+    return null;
+  }
 }
 
 function messageOf(error: unknown): string {

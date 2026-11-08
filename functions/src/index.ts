@@ -1,26 +1,32 @@
-import { app, type HttpRequest, type HttpResponseInit, type InvocationContext, type Timer } from "@azure/functions";
-import { scoreIncomingFromEnv } from "./azure";
+import { app, type InvocationContext } from "@azure/functions";
+import { scoreDroppedBlob } from "./azure";
+import { CONNECTION_SETTING, INCOMING_CONTAINER } from "./layout";
 
-export async function scoreIncomingTimer(_timer: Timer, context: InvocationContext): Promise<void> {
-  const summary = await scoreIncomingFromEnv();
-  context.log(JSON.stringify(summary));
+export async function scoreIncomingBlob(blob: unknown, context: InvocationContext): Promise<void> {
+  const name = blobName(context);
+  context.log(`Scoring ${name}`);
+  await scoreDroppedBlob(name, toBuffer(blob));
 }
 
-export async function scoreIncomingHttp(_request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
-  const summary = await scoreIncomingFromEnv();
-  context.log(JSON.stringify(summary));
-  return { jsonBody: summary };
+app.storageBlob("scoreIncoming", {
+  path: `${INCOMING_CONTAINER}/{name}`,
+  connection: CONNECTION_SETTING,
+  source: "LogsAndContainerScan",
+  handler: scoreIncomingBlob,
+});
+
+function blobName(context: InvocationContext): string {
+  const metadata = context.triggerMetadata ?? {};
+  const raw = metadata.name ?? metadata.blobTrigger;
+  if (typeof raw !== "string" || !raw.trim()) throw new Error("Blob name is missing.");
+  const name = raw.trim();
+  const prefix = `${INCOMING_CONTAINER}/`;
+  return name.startsWith(prefix) ? name.slice(prefix.length) : name;
 }
 
-app.timer("scoreIncoming", {
-  schedule: "0 * * * * *",
-  runOnStartup: true,
-  handler: scoreIncomingTimer,
-});
-
-app.http("scoreIncomingNow", {
-  route: "score-transcripts",
-  methods: ["POST"],
-  authLevel: "function",
-  handler: scoreIncomingHttp,
-});
+function toBuffer(blob: unknown): Buffer {
+  if (Buffer.isBuffer(blob)) return blob;
+  if (blob instanceof Uint8Array) return Buffer.from(blob);
+  if (typeof blob === "string") return Buffer.from(blob);
+  throw new Error("Blob content is missing.");
+}

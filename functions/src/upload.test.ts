@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import { scoreOne } from "./run";
 import { handleUpload, filesFromBody } from "./uploadServer";
-import { uploadThenScore } from "./uploadFiles";
+import { uploadFiles, watchTranscript } from "./uploadFiles";
 import type { TranscriptStore } from "./store";
 
 type Blob = { body: Buffer; contentType: string };
@@ -38,23 +39,32 @@ test("the upload page source has no storage key", () => {
   assert.equal(page.includes("SORTED_STORAGE_CONNECTION_STRING"), false);
   assert.match(page, /incomingtranscripts/);
   assert.match(page, /processedtranscripts/);
+  assert.doesNotMatch(page, />\s*Process\s*</);
 });
 
-test("uploads a transcript and the existing scorer moves it", async () => {
+test("upload only stores the file until the blob trigger scores it", async () => {
   const incoming = new MemoryStore();
   const processed = new MemoryStore();
-  const summary = await uploadThenScore(
-    incoming,
-    processed,
-    [{ name: "notes/harper.txt", bytes: Buffer.from("Customer: The refund never arrived."), contentType: "text/plain" }],
-    now,
-  );
+  const summary = await uploadFiles(incoming, [
+    { name: "notes/harper.txt", bytes: Buffer.from("Customer: The refund never arrived."), contentType: "text/plain" },
+  ]);
   assert.deepEqual(summary.uploaded, ["harper.txt"]);
   assert.deepEqual(summary.rejected, []);
-  assert.deepEqual(summary.scored, ["harper.txt"]);
+  assert.equal(incoming.blobs.has("harper.txt"), true);
+  assert.equal(processed.blobs.has("harper.txt"), false);
+  assert.deepEqual(await watchTranscript(incoming, processed, "harper.txt"), {
+    file: "harper.txt",
+    state: "processing",
+    error: null,
+    result: null,
+  });
+
+  const outcome = await scoreOne(incoming, processed, "harper.txt", incoming.blobs.get("harper.txt")!.body, now);
+  assert.equal(outcome.status, "scored");
   assert.equal(incoming.blobs.has("harper.txt"), false);
-  assert.equal(processed.blobs.get("harper.txt")?.body.toString(), "Customer: The refund never arrived.");
-  const result = JSON.parse(processed.blobs.get("results/harper.txt.json")?.body.toString() ?? "") as { nps: number | null; evidence: string };
+  const progress = await watchTranscript(incoming, processed, "harper.txt");
+  assert.equal(progress.state, "scored");
+  const result = progress.result as { nps: number | null; evidence: string };
   assert.equal(result.nps, null);
   assert.equal(result.evidence, "The refund never arrived.");
 });
@@ -62,21 +72,17 @@ test("uploads a transcript and the existing scorer moves it", async () => {
 test("a rejected file is not stored and does not block a good one", async () => {
   const incoming = new MemoryStore();
   const processed = new MemoryStore();
-  const summary = await uploadThenScore(
-    incoming,
-    processed,
-    [
-      { name: "..", bytes: Buffer.from("Customer: Really pleased."), contentType: "text/plain" },
-      { name: "photo.png", bytes: Buffer.from("nope"), contentType: "image/png" },
-      { name: "notes/../call.txt", bytes: Buffer.from("NPS: 9\nCustomer: Really pleased."), contentType: "" },
-    ],
-    now,
-  );
+  const summary = await uploadFiles(incoming, [
+    { name: "..", bytes: Buffer.from("Customer: Really pleased."), contentType: "text/plain" },
+    { name: "photo.png", bytes: Buffer.from("nope"), contentType: "image/png" },
+    { name: "notes/../call.txt", bytes: Buffer.from("NPS: 9\nCustomer: Really pleased."), contentType: "" },
+  ]);
   assert.deepEqual(summary.uploaded, ["call.txt"]);
   assert.equal(summary.rejected.length, 2);
-  assert.equal(incoming.blobs.has("../secret.txt"), false);
-  assert.equal(processed.blobs.has("../call.txt"), false);
-  assert.equal(processed.blobs.has("call.txt"), true);
+  assert.equal(incoming.blobs.has("call.txt"), true);
+  assert.equal(processed.blobs.has("call.txt"), false);
+  const outcome = await scoreOne(incoming, processed, "call.txt", incoming.blobs.get("call.txt")!.body, now);
+  assert.equal(outcome.status, "scored");
   const result = JSON.parse(processed.blobs.get("results/call.txt.json")?.body.toString() ?? "") as { npsBand: string };
   assert.equal(result.npsBand, "promoter");
 });
@@ -95,16 +101,24 @@ test("the local page posts files and does not embed them in the site", async () 
   assert.equal(home.status, 200);
   assert.equal(home.body, page);
 
+  const idle = { page, upload: async () => ({ uploaded: [], rejected: [] }), status: async () => ({ file: "", state: "processing" as const, error: null, result: null }) };
   const upload = await handleUpload("POST", "/upload", body, {
-    page,
+    ...idle,
     upload: async (files) => {
       assert.equal(files[0]?.name, "call.txt");
-      return { uploaded: ["call.txt"], rejected: [], scored: ["call.txt"], failed: [] };
+      return { uploaded: ["call.txt"], rejected: [] };
     },
   });
   assert.equal(upload.status, 200);
-  assert.deepEqual(JSON.parse(upload.body), { uploaded: ["call.txt"], rejected: [], scored: ["call.txt"], failed: [] });
+  assert.deepEqual(JSON.parse(upload.body), { uploaded: ["call.txt"], rejected: [] });
 
-  const missing = await handleUpload("GET", "/scoring", Buffer.alloc(0), { page, upload: async () => ({ uploaded: [], rejected: [], scored: [], failed: [] }) });
+  const status = await handleUpload("GET", "/status?name=call.txt", Buffer.alloc(0), {
+    ...idle,
+    status: async (name) => ({ file: name, state: "processing", error: null, result: null }),
+  });
+  assert.equal(status.status, 200);
+  assert.deepEqual(JSON.parse(status.body), { file: "call.txt", state: "processing", error: null, result: null });
+
+  const missing = await handleUpload("GET", "/scoring", Buffer.alloc(0), idle);
   assert.equal(missing.status, 404);
 });

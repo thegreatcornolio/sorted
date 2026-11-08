@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { openStores } from "./azure";
 import { CONNECTION_SETTING } from "./layout";
 import { loadLocalSettings } from "./settings";
-import { uploadThenScore, type UploadFile, type UploadResult } from "./uploadFiles";
+import { uploadFiles, watchTranscript, type TranscriptProgress, type UploadFile, type UploadReceipt } from "./uploadFiles";
 
 export const UPLOAD_HOST = "127.0.0.1";
 export const UPLOAD_PORT = 8787;
@@ -28,6 +28,7 @@ async function respond(request: IncomingMessage, response: ServerResponse): Prom
     const result = await handleUpload(request.method ?? "GET", request.url ?? "/", raw, {
       page: readFileSync(pagePath, "utf8"),
       upload: uploadFromEnv,
+      status: statusFromEnv,
     });
     response.writeHead(result.status, {
       "content-type": result.contentType,
@@ -46,11 +47,20 @@ export async function handleUpload(
   method: string,
   url: string,
   rawBody: Buffer,
-  options: { page: string; upload: (files: UploadFile[]) => Promise<UploadResult> },
+  options: {
+    page: string;
+    upload: (files: UploadFile[]) => Promise<UploadReceipt>;
+    status: (name: string) => Promise<TranscriptProgress>;
+  },
 ): Promise<{ status: number; contentType: string; body: string }> {
   const path = url.split("?")[0] ?? "/";
   if (method === "GET" && (path === "/" || path === "/index.html")) {
     return { status: 200, contentType: "text/html; charset=utf-8", body: options.page };
+  }
+  if (method === "GET" && path === "/status") {
+    const name = new URL(url, "http://127.0.0.1").searchParams.get("name") ?? "";
+    const progress = await options.status(name);
+    return { status: 200, contentType: "application/json; charset=utf-8", body: JSON.stringify(progress) };
   }
   if (method === "POST" && path === "/upload") {
     const files = filesFromBody(rawBody);
@@ -78,11 +88,20 @@ export function filesFromBody(rawBody: Buffer): UploadFile[] {
   });
 }
 
-async function uploadFromEnv(files: UploadFile[]): Promise<UploadResult> {
+async function uploadFromEnv(files: UploadFile[]): Promise<UploadReceipt> {
+  const { incoming } = await openStores(requiredConnection());
+  return uploadFiles(incoming, files);
+}
+
+async function statusFromEnv(name: string): Promise<TranscriptProgress> {
+  const { incoming, processed } = await openStores(requiredConnection());
+  return watchTranscript(incoming, processed, name);
+}
+
+function requiredConnection(): string {
   const connection = process.env[CONNECTION_SETTING]?.trim();
   if (!connection) throw new Error(`${CONNECTION_SETTING} is not set.`);
-  const { incoming, processed } = await openStores(connection);
-  return uploadThenScore(incoming, processed, files);
+  return connection;
 }
 
 function readBody(request: IncomingMessage): Promise<Buffer> {

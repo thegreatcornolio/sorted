@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { MAX_TRANSCRIPT_BYTES } from "./layout";
 import { scoreTranscript } from "./score";
 
 function score(text: string, file = "call.txt") {
@@ -140,5 +141,71 @@ test("rejects an unusable file", () => {
   assert.throws(() => score("{"), /not valid JSON/i);
   assert.throws(() => score(JSON.stringify({ nps: 4.5, text: "The refund never arrived." })), /0 to 10/);
   assert.throws(() => scoreTranscript("blob.bin", Buffer.from([0x00, 0x61])), /not text/);
-  assert.throws(() => scoreTranscript("huge.txt", Buffer.alloc(1_048_577, 65)), /too large/);
+  assert.throws(() => scoreTranscript("huge.txt", Buffer.alloc(MAX_TRANSCRIPT_BYTES + 1, 65)), /too large/);
 });
+
+test("an AssemblyAI call is scored from what was said, not from confidence", () => {
+  const text = "I want to cancel. The premium is too expensive.";
+  const result = score(JSON.stringify(asr(text, 9)), "life.json");
+  assert.equal(result.file, "life.json");
+  assert.equal(result.nps, null);
+  assert.equal(result.npsBand, "detractor");
+  assert.equal(result.reason, "They wanted to cancel");
+  assert.ok(result.evidence);
+  assert.equal(text.includes(result.evidence), true);
+  assert.ok(result.evidence.length <= 280);
+  assert.equal(result.evidence.includes("\n"), false);
+});
+
+test("a pleased call is a promoter without a survey score", () => {
+  const text = "Thank you, that was excellent and I am really pleased.";
+  const result = score(JSON.stringify(asr(text, 0.99)));
+  assert.equal(result.nps, null);
+  assert.equal(result.npsBand, "promoter");
+  assert.equal(result.reason, "They were pleased with the call");
+  assert.equal(text.includes(result.evidence ?? ""), true);
+  assert.ok((result.evidence ?? "").length <= 280);
+});
+
+test("an undecided call is passive without a survey score", () => {
+  const text = "I will think about it. I am still deciding.";
+  const result = score(JSON.stringify(asr(text, 0.8)));
+  assert.equal(result.nps, null);
+  assert.equal(result.npsBand, "passive");
+  assert.equal(result.reason, "They were still deciding");
+  assert.equal(text.includes(result.evidence ?? ""), true);
+});
+
+test("a call larger than one megabyte still scores", () => {
+  const text = "I want to cancel. The premium is too expensive.";
+  const call = asr(text, 0.93);
+  const sample = Buffer.byteLength(JSON.stringify({ text: "um", start: 0, end: 40, confidence: 0.4, speaker: null }));
+  const extra = Math.ceil((1_048_577 - Buffer.byteLength(JSON.stringify(call))) / sample) + 8;
+  for (let index = 0; index < extra; index += 1) {
+    call.words.push({ text: "um", start: index * 100, end: index * 100 + 40, confidence: 0.4, speaker: null });
+  }
+  const body = Buffer.from(JSON.stringify(call));
+  assert.ok(body.length > 1_048_576);
+  assert.ok(body.length <= MAX_TRANSCRIPT_BYTES);
+  const result = scoreTranscript("life-long.json", body);
+  assert.equal(result.nps, null);
+  assert.equal(result.npsBand, "detractor");
+  assert.equal(result.reason, "They wanted to cancel");
+  assert.equal(text.includes(result.evidence ?? ""), true);
+});
+
+function asr(text: string, confidence: number) {
+  return {
+    text,
+    confidence,
+    audio_duration: 146.2,
+    words: text.split(/\s+/).map((word, index) => ({
+      text: word,
+      start: index * 400,
+      end: index * 400 + 280,
+      confidence: 0.88,
+      speaker: null as null,
+    })),
+    redacted_pii_policies: ["person_name", "phone_number"],
+  };
+}

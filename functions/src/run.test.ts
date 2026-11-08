@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { scoreIncoming, transcriptName } from "./run";
+import { scoreIncoming, scoreOne, transcriptName } from "./run";
 import type { TranscriptStore } from "./store";
 
 type Blob = { body: Buffer; contentType: string };
@@ -140,6 +140,17 @@ test("a later success clears the error beside the result", async () => {
   assert.equal(processed.blobs.has("results/call.txt.error.json"), false);
   assert.equal(processed.blobs.has("results/call.txt.json"), true);
   assert.equal(processed.blobs.has("call.txt"), true);
+});
+
+test("a blob that cannot be scored stays in incoming and gets an error file", async () => {
+  const incoming = new MemoryStore({ "empty.txt": "  \n" });
+  const processed = new MemoryStore();
+  const outcome = await scoreOne(incoming, processed, "empty.txt", Buffer.from("  \n"), now);
+  assert.equal(outcome.status, "failed");
+  assert.equal(incoming.blobs.has("empty.txt"), true);
+  assert.equal(processed.blobs.has("empty.txt"), false);
+  const error = JSON.parse(processed.blobs.get("results/empty.txt.error.json")?.body.toString() ?? "") as { error: string };
+  assert.match(error.error, /empty/i);
 });
 
 test("transcript names are the blob names in the container", () => {

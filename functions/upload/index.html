@@ -13,6 +13,7 @@
       button:disabled { opacity: 0.6; }
       #status { min-height: 1.5rem; }
       .ok { color: #1f6b34; }
+      .wait { color: #8a5a12; }
       .bad { color: #8e2f2a; }
       ul { padding-left: 1.2rem; }
       code { font-family: ui-monospace, monospace; }
@@ -20,7 +21,7 @@
   </head>
   <body>
     <h1>Upload transcripts</h1>
-    <p>Choose text or JSON transcripts. This page sends them to the local server, which stores them in <code>incomingtranscripts</code> and scores them. A successful file moves to <code>processedtranscripts</code>.</p>
+    <p>Choose text or JSON transcripts. This page only puts them in <code>incomingtranscripts</code>. Scoring starts from that drop. A finished file moves to <code>processedtranscripts</code>.</p>
     <form id="form">
       <label>
         Transcript files
@@ -29,7 +30,7 @@
       <button type="submit">Upload</button>
     </form>
     <p id="status" role="status"></p>
-    <div id="report"></div>
+    <ul id="report"></ul>
     <script>
       const form = document.querySelector("#form");
       const input = document.querySelector("#files");
@@ -46,7 +47,7 @@
           return;
         }
         button.disabled = true;
-        setStatus("Uploading…", true);
+        setStatus("Uploading…", "wait");
         try {
           const files = await Promise.all(chosen.map(encodeFile));
           const response = await fetch("/upload", {
@@ -56,16 +57,50 @@
           });
           const text = await response.text();
           if (!response.ok) {
-            setStatus(text || "Upload failed.", false);
+            setStatus(text || "Upload failed.", "bad");
             return;
           }
-          showReport(JSON.parse(text));
+          const summary = JSON.parse(text);
+          for (const item of summary.rejected || []) addItem(item.file + ": " + item.error, "bad");
+          const uploaded = summary.uploaded || [];
+          if (!uploaded.length) {
+            setStatus("Nothing was uploaded.", "bad");
+            return;
+          }
+          setStatus("Uploaded. Scoring starts from the drop.", "wait");
+          await Promise.all(uploaded.map((name) => watch(name)));
         } catch (error) {
-          setStatus(error instanceof Error ? error.message : "Upload failed.", false);
+          setStatus(error instanceof Error ? error.message : "Upload failed.", "bad");
         } finally {
           button.disabled = false;
         }
       });
+
+      async function watch(name) {
+        const row = addItem(name + ": scoring…", "wait");
+        for (;;) {
+          await sleep(2000);
+          const response = await fetch("/status?name=" + encodeURIComponent(name));
+          if (!response.ok) {
+            row.textContent = name + ": " + (await response.text());
+            row.className = "bad";
+            return;
+          }
+          const progress = await response.json();
+          if (progress.state === "processing") continue;
+          if (progress.state === "failed") {
+            row.textContent = name + ": " + (progress.error || "Scoring failed.");
+            row.className = "bad";
+            return;
+          }
+          const result = progress.result || {};
+          const quote = result.evidence ? " “" + result.evidence + "”" : "";
+          const reason = result.reason ? " " + result.reason + "." : "";
+          row.textContent = name + ": " + (result.npsBand || "scored") + "." + reason + quote;
+          row.className = "ok";
+          return;
+        }
+      }
 
       async function encodeFile(file) {
         const bytes = new Uint8Array(await file.arrayBuffer());
@@ -74,28 +109,21 @@
         return { name: file.name, contentType: file.type || "", body: btoa(binary) };
       }
 
-      function setStatus(message, ok) {
+      function setStatus(message, tone) {
         status.textContent = message;
-        status.className = ok ? "ok" : "bad";
+        status.className = tone;
       }
 
-      function showReport(summary) {
-        const scored = summary.scored || [];
-        const failed = summary.failed || [];
-        const rejected = summary.rejected || [];
-        setStatus(scored.length ? "Scored " + scored.length + "." : "Nothing was scored.", scored.length > 0 && failed.length === 0 && rejected.length === 0);
-        const list = document.createElement("ul");
-        for (const name of scored) addItem(list, name + " moved to processedtranscripts.", true);
-        for (const item of failed) addItem(list, item.file + ": " + item.error, false);
-        for (const item of rejected) addItem(list, item.file + ": " + item.error, false);
-        if (list.childNodes.length) report.append(list);
-      }
-
-      function addItem(list, text, ok) {
+      function addItem(text, tone) {
         const item = document.createElement("li");
         item.textContent = text;
-        item.className = ok ? "ok" : "bad";
-        list.append(item);
+        item.className = tone;
+        report.append(item);
+        return item;
+      }
+
+      function sleep(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
       }
     </script>
   </body>
