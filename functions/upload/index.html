@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Upload transcripts</title>
+    <style>
+      :root { color-scheme: light; }
+      body { font: 16px/1.5 ui-sans-serif, system-ui, sans-serif; margin: 2rem auto; max-width: 40rem; padding: 0 1rem; color: #1c2430; }
+      h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+      form { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; margin: 1.25rem 0; }
+      button { font: inherit; background: #1c2430; color: white; border: 0; border-radius: 6px; padding: 0.45rem 0.9rem; }
+      button:disabled { opacity: 0.6; }
+      #status { min-height: 1.5rem; }
+      .ok { color: #1f6b34; }
+      .wait { color: #8a5a12; }
+      .bad { color: #8e2f2a; }
+      ul { padding-left: 1.2rem; }
+      code { font-family: ui-monospace, monospace; }
+    </style>
+  </head>
+  <body>
+    <h1>Upload transcripts</h1>
+    <p>Choose text or JSON transcripts. This page only puts them in <code>incomingtranscripts</code>. Scoring starts from that drop. A finished file moves to <code>processedtranscripts</code>.</p>
+    <form id="form">
+      <label>
+        Transcript files
+        <input id="files" type="file" multiple accept=".txt,.text,.md,.json,text/plain,text/markdown,application/json" />
+      </label>
+      <button type="submit">Upload</button>
+    </form>
+    <p id="status" role="status"></p>
+    <ul id="report"></ul>
+    <script>
+      const form = document.querySelector("#form");
+      const input = document.querySelector("#files");
+      const status = document.querySelector("#status");
+      const report = document.querySelector("#report");
+      const button = form.querySelector("button");
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        report.replaceChildren();
+        const chosen = [...input.files];
+        if (!chosen.length) {
+          setStatus("Choose at least one transcript.", false);
+          return;
+        }
+        button.disabled = true;
+        setStatus("Uploading…", "wait");
+        try {
+          const files = await Promise.all(chosen.map(encodeFile));
+          const response = await fetch("/upload", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ files }),
+          });
+          const text = await response.text();
+          if (!response.ok) {
+            setStatus(text || "Upload failed.", "bad");
+            return;
+          }
+          const summary = JSON.parse(text);
+          for (const item of summary.rejected || []) addItem(item.file + ": " + item.error, "bad");
+          const uploaded = summary.uploaded || [];
+          if (!uploaded.length) {
+            setStatus("Nothing was uploaded.", "bad");
+            return;
+          }
+          setStatus("Uploaded. Scoring starts from the drop.", "wait");
+          await Promise.all(uploaded.map((name) => watch(name)));
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : "Upload failed.", "bad");
+        } finally {
+          button.disabled = false;
+        }
+      });
+
+      async function watch(name) {
+        const row = addItem(name + ": scoring…", "wait");
+        for (;;) {
+          await sleep(2000);
+          const response = await fetch("/status?name=" + encodeURIComponent(name));
+          if (!response.ok) {
+            row.textContent = name + ": " + (await response.text());
+            row.className = "bad";
+            return;
+          }
+          const progress = await response.json();
+          if (progress.state === "processing") continue;
+          if (progress.state === "failed") {
+            row.textContent = name + ": " + (progress.error || "Scoring failed.");
+            row.className = "bad";
+            return;
+          }
+          const result = progress.result || {};
+          const quote = result.evidence ? " “" + result.evidence + "”" : "";
+          const reason = result.reason ? " " + result.reason + "." : "";
+          row.textContent = name + ": " + (result.npsBand || "scored") + "." + reason + quote;
+          row.className = "ok";
+          return;
+        }
+      }
+
+      async function encodeFile(file) {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        let binary = "";
+        for (const byte of bytes) binary += String.fromCharCode(byte);
+        return { name: file.name, contentType: file.type || "", body: btoa(binary) };
+      }
+
+      function setStatus(message, tone) {
+        status.textContent = message;
+        status.className = tone;
+      }
+
+      function addItem(text, tone) {
+        const item = document.createElement("li");
+        item.textContent = text;
+        item.className = tone;
+        report.append(item);
+        return item;
+      }
+
+      function sleep(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+      }
+    </script>
+  </body>
+</html>
