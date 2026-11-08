@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { companyNps } from "@/lib/analyze";
 import { useIngest } from "@/lib/ingest";
+import { pulseFrom } from "@/lib/pulse";
 import { allRows } from "@/lib/rows";
 import { ScoreDial } from "./ScoreDial";
 import { SentimentPulseCard } from "./SentimentPulseCard";
@@ -31,10 +32,11 @@ export function Overview() {
     .sort((a, b) => b.count - a.count || a.worst - b.worst || a.label.localeCompare(b.label))
     .slice(0, 5);
   const ingesting = count < rows.length;
+  const pulse = pulseFrom(visible);
 
   return (
     <>
-      <SiteHeader current="overview">
+      <SiteHeader>
         <span className="live-pill">
           <span className={ingesting ? "dot is-on" : "dot"} aria-hidden="true" />
           {count === 0 ? "Waiting for the first interaction" : ingesting ? `Ingesting ${count} of ${rows.length}` : `Queue ingested · ${rows.length}`}
@@ -86,7 +88,7 @@ export function Overview() {
               </p>
             </section>
           </div>
-          <SentimentPulseCard rows={visible} />
+          <SentimentPulseCard pulse={pulse} />
           <section className="panel reason-panel" aria-label="Top reasons for bad NPS">
             <div className="panel-head">
               <h2>Top 5 reasons for bad NPS</h2>

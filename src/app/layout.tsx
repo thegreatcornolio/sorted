@@ -12,7 +12,7 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: "SORTED.AI · Customer interactions support",
   description:
-    "NPS and CSAT for customer service interactions across voice, email, and WhatsApp, with a next best action already triggered on negative scores.",
+    "NPS for scored customer conversations, plus a demo of voice, email, and WhatsApp interactions with a next best action on negative scores.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

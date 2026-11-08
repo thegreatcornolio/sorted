@@ -9,12 +9,15 @@ npm install
 npm run dev
 ```
 
-- Customer interactions: http://localhost:3000 and https://sorted.trilogybpo.com/
-- Same desk: http://localhost:3000/nadclinic and https://sorted.trilogybpo.com/nadclinic/
+- Scored transcripts: http://localhost:3000 and https://sorted.trilogybpo.com/
+- Demo queue: http://localhost:3000/demo and https://sorted.trilogybpo.com/demo/
+- Interaction desk: http://localhost:3000/interactions and http://localhost:3000/nadclinic
 - Score model: http://localhost:3000/scoring
 
-The overview Sentiment Pulse uses the same live queue as the NPS and CSAT dials.
+The main page reads `GET /api/pulse` on the Azure Function, the aggregate of processed transcripts. The Function App origin is the public `baseUrl` in `public/sentiment-pulse-config.json`. Until that host is published, the value is the placeholder `SENTIMENT_PULSE_BASE_URL`. The path is `/api/pulse`. A build can set `NEXT_PUBLIC_SENTIMENT_PULSE_BASE_URL` to the same origin. These call transcripts have no channel field, and the page does not add one. The site does not contain a storage key.
 
-`npm run build` writes a static site to `out/`. GitHub Pages publishes that build for the custom domain.
+The demo at `/demo` is the simulated queue. The main page has a button that opens it. That demo Sentiment Pulse uses the same queue as its NPS and CSAT dials.
+
+`npm run build` writes a static site to `out/`. GitHub Pages publishes that build for the custom domain. `functions/` is not part of the site build.
 
 `npm run check` confirms every score quotes a customer line, and that negative NPS or CSAT values trigger a distinct next best action.

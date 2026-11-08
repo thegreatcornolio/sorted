@@ -82,7 +82,7 @@ export function TranscriptDesk() {
             <h1>Interactions</h1>
             <p>
               This is where the hundred interactions are processed, one every few seconds. The{" "}
-              <Link href="/">overview</Link> uses this same queue for NPS, CSAT, and the top reasons.
+              <Link href="/demo">demo</Link> uses this same queue for NPS, CSAT, and the top reasons.
             </p>
           </div>
           <div className="score-board">
