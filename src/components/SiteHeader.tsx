@@ -21,7 +21,7 @@ export function SiteHeader({
         <small>Customer support</small>
       </Link>
       <div className="header-right">
-        <nav className="site-nav" aria-label="Demos">
+        <nav className="site-nav" aria-label="Site">
           <Link href="/" aria-current={current === "overview" ? "page" : undefined}>
             Overview
           </Link>
