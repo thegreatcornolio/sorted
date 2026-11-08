@@ -4,5 +4,9 @@
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
     "FUNCTIONS_WORKER_RUNTIME": "node",
     "SORTED_STORAGE_CONNECTION_STRING": ""
+  },
+  "Host": {
+    "CORS": "https://sorted.trilogybpo.com",
+    "CORSCredentials": false
   }
 }

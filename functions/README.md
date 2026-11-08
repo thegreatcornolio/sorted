@@ -21,6 +21,8 @@ npm start
 
 `npm start` builds the function and starts the host. A blob that lands in `incomingtranscripts` is scored by the trigger. The host reads `SORTED_STORAGE_CONNECTION_STRING` from `local.settings.json`.
 
+`GET /api/pulse` is anonymous. sorted.trilogybpo.com can call it with no storage key and no function key. The function reads `results/*.json` in `processedtranscripts` and returns the Sentiment Pulse aggregate: mix, promoter and detractor counts, reasons, one evidence quote, and movement. The response allows origin `https://sorted.trilogybpo.com`. `nps` is not in that response. A call's band still comes from the words, not from a survey score.
+
 Deploy with one command, from this folder, after the Function App exists and the app setting is set in Azure:
 
 ```bash

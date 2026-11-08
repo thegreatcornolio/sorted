@@ -1,5 +1,6 @@
 import { BlobServiceClient, type ContainerClient } from "@azure/storage-blob";
 import { CONNECTION_SETTING, INCOMING_CONTAINER, PROCESSED_CONTAINER } from "./layout";
+import { isResultBlob } from "./pulse";
 import { scoreIncoming, scoreOne, type ScoreSummary } from "./run";
 import type { TranscriptStore } from "./store";
 
@@ -11,6 +12,21 @@ export async function scoreIncomingFromEnv(): Promise<ScoreSummary> {
 export async function scoreDroppedBlob(name: string, bytes: Buffer): Promise<void> {
   const { incoming, processed } = await openStores(requiredConnection());
   await scoreOne(incoming, processed, name, bytes);
+}
+
+export async function readScoredResults(): Promise<unknown[]> {
+  const { processed } = await openStores(requiredConnection());
+  const listed = await processed.list();
+  const results: unknown[] = [];
+  for (const blob of listed) {
+    if (!isResultBlob(blob.name)) continue;
+    try {
+      results.push(JSON.parse((await processed.read(blob.name)).toString("utf8")) as unknown);
+    } catch {
+      continue;
+    }
+  }
+  return results;
 }
 
 function requiredConnection(): string {
