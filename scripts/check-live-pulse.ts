@@ -118,6 +118,8 @@ const overview = readFileSync(new URL("../src/components/Overview.tsx", import.m
 const liveOverview = readFileSync(new URL("../src/components/LiveOverview.tsx", import.meta.url), "utf8");
 expect(home.includes("<Overview") && !home.includes("LiveOverview"), "the main page is the simulated queue");
 expect(livePage.includes("<LiveOverview"), "/live is the scored pulse");
+const header = readFileSync(new URL("../src/components/SiteHeader.tsx", import.meta.url), "utf8");
+expect(header.includes('href="/live"') && header.includes("\n            Live\n"), "the header links to Live");
 expect(!existsSync(fileURLToPath(new URL("../src/app/demo/page.tsx", import.meta.url))), "the demo is not a separate route");
 expect(overview.includes('href="/live"') && overview.includes("Open live scores"), "the demo links to live scores");
 expect(liveOverview.includes("loadPulseAggregate"), "the live page loads through the timed helper");

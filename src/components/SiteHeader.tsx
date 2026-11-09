@@ -5,7 +5,7 @@ export function SiteHeader({
   current,
   children,
 }: {
-  current?: "overview" | "interactions" | "scoring";
+  current?: "overview" | "live" | "interactions" | "scoring";
   children?: ReactNode;
 }) {
   return (
@@ -24,6 +24,9 @@ export function SiteHeader({
         <nav className="site-nav" aria-label="Site">
           <Link href="/" aria-current={current === "overview" ? "page" : undefined}>
             Overview
+          </Link>
+          <Link href="/live" aria-current={current === "live" ? "page" : undefined}>
+            Live
           </Link>
           <Link href="/interactions" aria-current={current === "interactions" ? "page" : undefined}>
             Interactions
