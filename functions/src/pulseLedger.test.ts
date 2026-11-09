@@ -32,6 +32,18 @@ test("an empty store stays empty until the first seed", async () => {
   assert.equal((calls[0] as ScoredRecord).file, "kept.json");
 });
 
+test("a written empty pulse is not refilled from old scores", async () => {
+  const ledger = memoryLedger();
+  await rememberScore(ledger, record("old.json", "2026-11-08T12:00:00.000Z", "detractor"));
+  await ledger.write([]);
+  await seedScores(ledger, [record("old.json", "2026-11-08T12:00:00.000Z", "detractor")]);
+  assert.deepEqual(await loadScores(ledger), []);
+  await rememberScore(ledger, record("new.json", "2026-11-08T13:00:00.000Z", "promoter"));
+  const calls = await loadScores(ledger);
+  assert.equal(calls.length, 1);
+  assert.equal((calls[0] as ScoredRecord).file, "new.json");
+});
+
 test("no result json clears stored scores on the next poll", async () => {
   const ledger = memoryLedger();
   await rememberScore(ledger, record("old.json", "2026-11-08T12:00:00.000Z", "detractor"));
@@ -105,6 +117,11 @@ function memoryLedger(): PulseLedger {
     async write(calls) {
       body = calls.map((item) => ({ ...(item as object) }));
     },
+    async update(change) {
+      const current = body ? body.map((item) => ({ ...(item as object) })) : null;
+      const next = await change(current);
+      body = next.map((item) => ({ ...(item as object) }));
+    },
   };
 }
 
@@ -116,6 +133,8 @@ function record(file: string, scoredAt: string, npsBand: ScoredRecord["npsBand"]
     mix: sentiment === "positive" ? { positive: 100, neutral: 0, negative: 0 } : sentiment === "negative" ? { positive: 0, neutral: 0, negative: 100 } : { positive: 0, neutral: 100, negative: 0 },
     nps: null,
     npsBand,
+    csat: npsBand === "detractor" ? 1 : npsBand === "promoter" ? 5 : 3,
+    csatBand: npsBand === "detractor" ? "negative" : npsBand === "promoter" ? "positive" : "neutral",
     reason: npsBand === "detractor" ? "They wanted to cancel" : null,
     evidence: npsBand === "detractor" ? "Please cancel the cover." : "Thank you.",
     company: null,

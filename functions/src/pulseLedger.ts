@@ -1,17 +1,19 @@
 import type { ScoredRecord } from "./run";
 
 export type PulseLedger = {
-  /** null means the store has never been written. */
+  /** null means the store has never been written. An empty array is a written pulse. */
   read(): Promise<unknown[] | null>;
   write(calls: unknown[]): Promise<void>;
+  update(change: (current: unknown[] | null) => unknown[] | Promise<unknown[]>): Promise<void>;
 };
 
 export async function rememberScore(ledger: PulseLedger, record: ScoredRecord): Promise<void> {
-  const current = (await ledger.read()) ?? [];
-  const next = current.filter((item) => !sameFile(item, record.file));
-  next.push(record);
-  next.sort(byArrival);
-  await ledger.write(next);
+  await ledger.update((current) => {
+    const next = (current ?? []).filter((item) => !sameFile(item, record.file));
+    next.push(record);
+    next.sort(byArrival);
+    return next;
+  });
 }
 
 export async function loadScores(ledger: PulseLedger): Promise<unknown[]> {
@@ -24,8 +26,7 @@ export async function reconcilePulse(
   loadRecords: () => Promise<unknown[]>,
 ): Promise<void> {
   if (!hasResults) {
-    const current = await ledger.read();
-    if (current == null || current.length > 0) await ledger.write([]);
+    await ledger.update((current) => (current == null || current.length > 0 ? [] : current));
     return;
   }
   if ((await ledger.read()) != null) return;
@@ -33,10 +34,12 @@ export async function reconcilePulse(
 }
 
 export async function seedScores(ledger: PulseLedger, records: unknown[]): Promise<void> {
-  if ((await ledger.read()) != null) return;
-  const next = records.filter((item) => item && typeof item === "object");
-  next.sort(byArrival);
-  await ledger.write(next);
+  await ledger.update((current) => {
+    if (current != null) return current;
+    const next = records.filter((item) => item && typeof item === "object");
+    next.sort(byArrival);
+    return next;
+  });
 }
 
 function sameFile(item: unknown, file: string): boolean {

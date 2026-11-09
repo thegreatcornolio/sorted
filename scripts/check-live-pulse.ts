@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import {
   loadPulseAggregate,
+  clearResultsUrl,
   overviewFromPulse,
   PULSE_FETCH_TIMEOUT_MS,
   readPulseAggregate,
@@ -67,12 +68,14 @@ const sample = {
 
 const aggregate = readPulseAggregate(sample);
 expect(aggregate?.total === 3, "aggregate total");
+expect(aggregate?.csat === null, "a missing csat stays blank");
 expect(aggregate != null && !("nps" in aggregate), "survey nps is not kept");
 expect(aggregate != null && !("channel" in aggregate), "channel is not kept");
 
 if (aggregate) {
   const overview = overviewFromPulse(aggregate);
   expect(overview.nps === -33, `company nps from bands, got ${overview.nps}`);
+  expect(overview.csat === null, "overview csat stays blank when the pulse has none");
   expect(overview.promoters === 1 && overview.passives === 0 && overview.detractors === 2, "bands");
   expect(overview.reasons[0]?.label === "They wanted to cancel", "reason");
   expect(overview.pulse.evidence?.quote === "Please cancel the cover.", "quote");
@@ -95,6 +98,14 @@ const empty = readPulseAggregate({
   movement: [],
 });
 expect(empty != null && overviewFromPulse(empty).nps === null, "empty pulse has no nps");
+expect(empty != null && overviewFromPulse(empty).csat === null, "empty pulse has no csat");
+const rated = readPulseAggregate({ ...sample, csat: 2.44 });
+expect(rated?.csat === 2.4, "csat is kept to one decimal");
+expect(rated != null && overviewFromPulse(rated).csat === 2.4, "live overview uses average csat");
+expect(
+  clearResultsUrl(`${PUBLISHED_PULSE_ORIGIN}/api/pulse`) === `${PUBLISHED_PULSE_ORIGIN}/api/clear-results`,
+  "clear results uses the pulse host",
+);
 
 const home = readFileSync(new URL("../src/app/page.tsx", import.meta.url), "utf8");
 const livePage = readFileSync(new URL("../src/app/live/page.tsx", import.meta.url), "utf8");
@@ -107,6 +118,11 @@ expect(overview.includes('href="/live"') && overview.includes("Open live scores"
 expect(liveOverview.includes("loadPulseAggregate"), "the live page loads through the timed helper");
 expect(liveOverview.includes('data-testid="pulse-waiting"'), "the live page has a waiting state");
 expect(liveOverview.includes('data-testid="retry-pulse"'), "the live page has a visible retry");
+expect(liveOverview.includes('label="CSAT"'), "the live page shows the CSAT dial");
+expect(liveOverview.includes('data-testid="kpi-csat"'), "the live page shows the CSAT average");
+expect(liveOverview.includes("Clear results"), "the live page has Clear results");
+expect(liveOverview.includes("clearPulseResults"), "Clear results calls the pulse host");
+expect(!liveOverview.includes("is-single"), "CSAT sits beside NPS");
 expect(!/genii/i.test(liveOverview + livePage), "the live page does not mention Genii");
 expect(!/sample/i.test(liveOverview + livePage), "the live page has no sample disclaimer");
 expect(!/pulse-disclaimer|pulse-sample/.test(liveOverview + livePage), "the live page does not use the sample disclaimer");

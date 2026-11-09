@@ -172,8 +172,39 @@ test("an undecided call is passive without a survey score", () => {
   const result = score(JSON.stringify(asr(text, 0.8)));
   assert.equal(result.nps, null);
   assert.equal(result.npsBand, "passive");
+  assert.equal(result.csat, 3);
+  assert.equal(result.csatBand, "neutral");
   assert.equal(result.reason, "They were still deciding");
   assert.equal(text.includes(result.evidence ?? ""), true);
+});
+
+test("a frustrated or unresolved call is a detractor with low csat", () => {
+  const text = "Thank you for calling. Have a great day. I am frustrated. This is still unresolved and nobody called me back.";
+  const result = score(JSON.stringify(asr(text, 0.91)));
+  assert.equal(result.nps, null);
+  assert.equal(result.npsBand, "detractor");
+  assert.equal(result.sentiment, "negative");
+  assert.ok(result.csat <= 2);
+  assert.equal(result.csatBand, "negative");
+  assert.equal(result.reason, "The problem was not resolved");
+  assert.equal(text.includes(result.evidence ?? ""), true);
+});
+
+test("a greeting without a real outcome stays passive", () => {
+  const text = "Thank you for calling. Have a great day. The policy documents are in the post.";
+  const result = score(JSON.stringify(asr(text, 0.9)));
+  assert.equal(result.nps, null);
+  assert.equal(result.npsBand, "passive");
+  assert.equal(result.csat, 3);
+  assert.equal(result.csatBand, "neutral");
+});
+
+test("a clearly pleased call keeps a high csat", () => {
+  const text = "Thank you, that was excellent and I am really pleased.";
+  const result = score(JSON.stringify(asr(text, 0.99)), "pleased.json");
+  assert.equal(result.npsBand, "promoter");
+  assert.ok(result.csat >= 4);
+  assert.equal(result.csatBand, "positive");
 });
 
 test("a call larger than one megabyte still scores", () => {

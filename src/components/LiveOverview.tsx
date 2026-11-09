@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
+  clearPulseResults,
   loadPulseAggregate,
   overviewFromPulse,
   PULSE_FETCH_TIMEOUT_MS,
@@ -17,6 +18,7 @@ const EMPTY = overviewFromPulse({
   mix: { positive: 0, neutral: 0, negative: 0 },
   promoters: 0,
   detractors: 0,
+  csat: null,
   reasons: [],
   evidence: null,
   movement: [],
@@ -28,6 +30,7 @@ export function LiveOverview() {
   const [phase, setPhase] = useState<Phase>("waiting");
   const [model, setModel] = useState<LiveOverviewModel>(EMPTY);
   const [attempt, setAttempt] = useState(0);
+  const [clearing, setClearing] = useState(false);
   const shown = phase === "ready" ? model : EMPTY;
 
   useEffect(() => {
@@ -66,6 +69,22 @@ export function LiveOverview() {
     setAttempt((current) => current + 1);
   }
 
+  function clearResults() {
+    if (clearing) return;
+    setClearing(true);
+    void clearPulseResults(PULSE_FETCH_TIMEOUT_MS, fetch)
+      .then((aggregate) => {
+        setModel(overviewFromPulse(aggregate));
+        setPhase("ready");
+      })
+      .catch(() => {
+        setPhase("error");
+      })
+      .finally(() => {
+        setClearing(false);
+      });
+  }
+
   const status =
     phase === "error"
       ? "Could not load"
@@ -89,9 +108,14 @@ export function LiveOverview() {
             <p className="kicker">Live scores · scored transcripts</p>
             <div className="intro-row">
               <h1>Customer interactions support</h1>
-              <Link href="/" className="text-button" data-testid="open-demo">
-                Open the demo
-              </Link>
+              <span className="intro-actions">
+                <button type="button" className="text-button" onClick={clearResults} disabled={clearing} data-testid="clear-results">
+                  {clearing ? "Clearing results" : "Clear results"}
+                </button>
+                <Link href="/" className="text-button" data-testid="open-demo">
+                  Open the demo
+                </Link>
+              </span>
             </div>
             {phase === "waiting" ? (
               <p className="status-line" data-testid="pulse-waiting">
@@ -107,7 +131,7 @@ export function LiveOverview() {
               </div>
             ) : null}
           </div>
-          <div className="summary-grid is-single">
+          <div className="summary-grid">
             <section className="panel summary-card" aria-label="NPS">
               <ScoreDial label="NPS" value={shown.nps} min={-100} max={100} digits={0} signed />
               <p className="band-counts" data-testid="nps-bands">
@@ -126,6 +150,12 @@ export function LiveOverview() {
               </p>
               <p className="meta dial-note" data-testid="kpi-nps">
                 {shown.nps === null ? "NPS appears with the first interaction." : `NPS ${shown.nps > 0 ? "+" : ""}${shown.nps}`}
+              </p>
+            </section>
+            <section className="panel summary-card" aria-label="CSAT">
+              <ScoreDial label="CSAT" value={shown.csat} min={1} max={5} />
+              <p className="meta dial-note" data-testid="kpi-csat">
+                {shown.csat === null ? "CSAT appears with the first interaction." : `Average ${shown.csat.toFixed(1)}`}
               </p>
             </section>
           </div>

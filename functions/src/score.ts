@@ -4,12 +4,16 @@ export type Sentiment = "positive" | "mixed" | "negative";
 
 export type NpsBand = "promoter" | "passive" | "detractor";
 
+export type CsatBand = "positive" | "neutral" | "negative";
+
 export type TranscriptScore = {
   file: string;
   sentiment: Sentiment;
   mix: { positive: number; neutral: number; negative: number };
   nps: number | null;
   npsBand: NpsBand | null;
+  csat: number;
+  csatBand: CsatBand;
   reason: string | null;
   evidence: string | null;
   company: string | null;
@@ -44,6 +48,10 @@ const THEMES: { reason: string; pattern: RegExp }[] = [
   {
     reason: "The account was locked, closed, or a complaint was ignored",
     pattern: /locked out|\blocked\b|no warning|complaint|ignored|no one came back|account (?:was )?closed/i,
+  },
+  {
+    reason: "The problem was not resolved",
+    pattern: /unresolved|not resolved|couldn't help|could not help|didn't help|did not help|unable to help|not sorted|didn't work|did not work|this failed|it failed/i,
   },
 ];
 
@@ -121,6 +129,46 @@ const POSITIVE = [
 
 const MILD = [/still cautious/i, /waiting to see/i, /think about it/i, /not sure/i, /maybe later/i, /still deciding/i];
 
+const CALL_HARM = [
+  ...NEGATIVE,
+  /\b(?:don't|do not) want\b/i,
+  /\bnot going ahead\b/i,
+  /\b(?:won't|will not) be (?:taking|proceeding)\b/i,
+  /\bchanged my mind\b/i,
+  /\bforget it\b/i,
+  /\bunresolved\b/i,
+  /\bnot resolved\b/i,
+  /\b(?:couldn't|could not|didn't|did not) help\b/i,
+  /\bunable to\b/i,
+  /\b(?:nobody|no one) (?:called|helped|answered)\b/i,
+  /\bnever called\b/i,
+  /\bstill (?:haven't|have not|waiting)\b/i,
+  /\b(?:this|it|that) failed\b/i,
+  /\b(?:didn't|did not) work\b/i,
+  /\bnot sorted\b/i,
+  /\bno answer\b/i,
+  /\b(?:upset|annoyed|ridiculous|useless)\b/i,
+  /\bnever again\b/i,
+  /\bspeak to (?:a |the )?(?:manager|supervisor)\b/i,
+];
+
+const CALL_PLEASED = [
+  /\breally pleased\b/i,
+  /\bvery happy\b/i,
+  /\bdelighted\b/i,
+  /\bexcellent\b/i,
+  /\bbrilliant\b/i,
+  /\bwonderful\b/i,
+  /\bperfect\b/i,
+  /\bspot on\b/i,
+  /\bgo ahead\b/i,
+  /\bi(?:'|’)ll take it\b/i,
+  /\bhappy to proceed\b/i,
+  /\bsounds good\b/i,
+  /\bsign me up\b/i,
+  /\bpleased\b/i,
+];
+
 const DRIVERS: { reason: string; pattern: RegExp }[] = [
   { reason: "They were ready to go ahead", pattern: /go ahead|i'll take it|happy to proceed|sounds good/i },
   { reason: "They were pleased with the call", pattern: /pleased|thank you|excellent|helpful|great/i },
@@ -151,38 +199,77 @@ function scoreParsed(file: string, parsed: Parsed): TranscriptScore {
   const sentiment = sentimentOf(lines);
   const corpus = lines.map((line) => line.text).join("\n");
   if (parsed.fromCall) {
-    const band = bandFromLanguage(sentiment);
-    const reason = reasonFor(band, corpus);
+    const judged = judgeCall(corpus);
+    const reason = reasonFor(judged.band, corpus);
     return {
       file,
-      sentiment,
-      mix: mixFor(sentiment),
+      sentiment: judged.sentiment,
+      mix: mixFor(judged.sentiment),
       nps: null,
-      npsBand: band,
+      npsBand: judged.band,
+      csat: judged.csat,
+      csatBand: csatBand(judged.csat),
       reason,
-      evidence: quoteFrom(corpus, band, reason),
+      evidence: quoteFrom(corpus, judged.band, reason),
       company: parsed.company,
     };
   }
   const nps = parsed.score;
   const band = nps == null ? null : npsBand(nps);
   const reason = band === "detractor" ? detractorReason(corpus) : null;
+  const rated = csatForScore(band, nps, sentiment);
   return {
     file,
     sentiment,
     mix: mixFor(sentiment),
     nps,
     npsBand: band,
+    csat: rated.csat,
+    csatBand: rated.csatBand,
     reason,
     evidence: evidenceFor(lines, sentiment, reason),
     company: parsed.company,
   };
 }
 
-function bandFromLanguage(sentiment: Sentiment): NpsBand {
-  if (sentiment === "negative") return "detractor";
-  if (sentiment === "positive") return "promoter";
-  return "passive";
+function csatBand(csat: number): CsatBand {
+  if (csat >= 4) return "positive";
+  if (csat <= 2) return "negative";
+  return "neutral";
+}
+
+function csatForScore(band: NpsBand | null, nps: number | null, sentiment: Sentiment): { csat: number; csatBand: CsatBand } {
+  if (band === "detractor") return finishCsat(nps != null && nps <= 3 ? 1 : 2);
+  if (band === "promoter") return finishCsat(nps === 10 ? 5 : 4);
+  if (band === "passive") return finishCsat(3);
+  if (sentiment === "negative") return finishCsat(2);
+  if (sentiment === "positive") return finishCsat(4);
+  return finishCsat(3);
+}
+
+function finishCsat(csat: number): { csat: number; csatBand: CsatBand } {
+  return { csat, csatBand: csatBand(csat) };
+}
+
+function judgeCall(text: string): { sentiment: Sentiment; band: NpsBand; csat: number } {
+  const spoken = withoutGreeting(text);
+  const harm = count(spoken, CALL_HARM);
+  const pleased = count(spoken, CALL_PLEASED);
+  const mild = count(spoken, MILD);
+  if (harm > 0) return { sentiment: "negative", band: "detractor", csat: harm >= 2 || harm > pleased ? 1 : 2 };
+  if (pleased > 0) return { sentiment: "positive", band: "promoter", csat: pleased >= 2 ? 5 : 4 };
+  if (mild > 0) return { sentiment: "mixed", band: "passive", csat: 3 };
+  return { sentiment: "mixed", band: "passive", csat: 3 };
+}
+
+function withoutGreeting(text: string): string {
+  return text
+    .replace(/\bthank(?:s| you) for (?:calling|holding|your (?:time|call|patience))\b/gi, " ")
+    .replace(/\bhave a (?:great|nice|good|lovely) (?:day|evening|weekend)\b/gi, " ")
+    .replace(/\bgood (?:morning|afternoon|evening)\b/gi, " ")
+    .replace(/\bhow can i help(?: you)?\b/gi, " ")
+    .replace(/\byou(?:'|’)re welcome\b/gi, " ")
+    .replace(/\byou are welcome\b/gi, " ");
 }
 
 function reasonFor(band: NpsBand, text: string): string {

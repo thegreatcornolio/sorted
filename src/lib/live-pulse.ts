@@ -6,6 +6,8 @@ export const SENTIMENT_PULSE_BASE_URL_PLACEHOLDER = "SENTIMENT_PULSE_BASE_URL";
 /** Anonymous aggregate of processedtranscripts. The host comes from config; this path is fixed. */
 export const SENTIMENT_PULSE_PATH = "/api/pulse";
 
+export const CLEAR_RESULTS_PATH = "/api/clear-results";
+
 /** Stop waiting on GET /api/pulse after a few seconds so the page can offer a retry. */
 export const PULSE_FETCH_TIMEOUT_MS = 4_000;
 
@@ -16,6 +18,7 @@ export type PulseAggregate = {
   mix: { positive: number; neutral: number; negative: number };
   promoters: number;
   detractors: number;
+  csat: number | null;
   reasons: PulseReason[];
   evidence: { quote: string; file: string } | null;
   movement: { file: string; scoredAt: string; positive: number; negative: number }[];
@@ -24,6 +27,7 @@ export type PulseAggregate = {
 export type LiveOverview = {
   total: number;
   nps: number | null;
+  csat: number | null;
   promoters: number;
   passives: number;
   detractors: number;
@@ -44,6 +48,20 @@ export function sentimentPulseUrl(baseUrl: string): string | null {
   }
   if ((url.protocol !== "https:" && url.protocol !== "http:") || url.username || url.password || !url.hostname) return null;
   url.pathname = SENTIMENT_PULSE_PATH;
+  url.search = "";
+  url.hash = "";
+  return url.toString();
+}
+
+export function clearResultsUrl(pulseUrl: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(pulseUrl);
+  } catch {
+    return null;
+  }
+  if (url.pathname !== SENTIMENT_PULSE_PATH) return null;
+  url.pathname = CLEAR_RESULTS_PATH;
   url.search = "";
   url.hash = "";
   return url.toString();
@@ -91,6 +109,41 @@ export async function loadPulseAggregate(
   }
 }
 
+export async function clearPulseResults(
+  timeoutMs: number,
+  fetchImpl: typeof fetch = fetch,
+  signal?: AbortSignal,
+): Promise<PulseAggregate> {
+  if (signal?.aborted) throw abortError();
+  const controller = new AbortController();
+  const onAbort = () => controller.abort();
+  signal?.addEventListener("abort", onAbort);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      reject(Object.assign(new Error("timeout"), { name: "TimeoutError" }));
+    }, timeoutMs);
+  });
+  try {
+    return await Promise.race([postClear(fetchImpl, controller.signal), timeout]);
+  } finally {
+    if (timer) clearTimeout(timer);
+    signal?.removeEventListener("abort", onAbort);
+  }
+}
+
+async function postClear(fetchImpl: typeof fetch, signal: AbortSignal): Promise<PulseAggregate> {
+  const pulseUrl = await loadSentimentPulseUrl(fetchImpl, signal);
+  const url = pulseUrl ? clearResultsUrl(pulseUrl) : null;
+  if (!url) throw new Error("config");
+  const response = await fetchImpl(url, { method: "POST", cache: "no-store", signal });
+  if (!response.ok) throw new Error(String(response.status));
+  const aggregate = readPulseAggregate(await response.json());
+  if (!aggregate) throw new Error("shape");
+  return aggregate;
+}
+
 async function readAggregate(fetchImpl: typeof fetch, signal: AbortSignal): Promise<PulseAggregate> {
   const url = await loadSentimentPulseUrl(fetchImpl, signal);
   if (!url) throw new Error("config");
@@ -127,7 +180,7 @@ export function readPulseAggregate(value: unknown): PulseAggregate | null {
   ) {
     return null;
   }
-  return { total, mix, promoters, detractors, reasons, evidence, movement };
+  return { total, mix, promoters, detractors, csat: readCsat(record.csat), reasons, evidence, movement };
 }
 
 export function overviewFromPulse(pulse: PulseAggregate): LiveOverview {
@@ -137,6 +190,7 @@ export function overviewFromPulse(pulse: PulseAggregate): LiveOverview {
   return {
     total: pulse.total,
     nps: pulse.total ? Math.round(((pulse.promoters - pulse.detractors) / pulse.total) * 100) : null,
+    csat: pulse.csat,
     promoters: pulse.promoters,
     passives,
     detractors: pulse.detractors,
@@ -176,6 +230,11 @@ export function movementLabel(scoredAt: string): string {
     timeZone: "UTC",
   }).format(date);
   return `${day} ${time}`;
+}
+
+function readCsat(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 1 || value > 5) return null;
+  return Math.round(value * 10) / 10;
 }
 
 function count(value: unknown): number | null {

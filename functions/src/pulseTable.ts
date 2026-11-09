@@ -102,27 +102,38 @@ export function tableLedger(connectionString: string): PulseLedger {
   };
   return {
     async read() {
-      return exclusive(async () => {
-        const table = await client();
-        try {
-          const entity = await table.getEntity(PARTITION, ROW);
-          const parsed: unknown = JSON.parse(unpackPulse(entity));
-          if (!Array.isArray(parsed)) throw new Error("Sentiment pulse store is unreadable.");
-          return parsed;
-        } catch (error) {
-          if (statusOf(error) === 404) return null;
-          throw error;
-        }
-      });
+      return exclusive(async () => readCurrent(await client()));
     },
     async write(calls) {
       await exclusive(async () => {
+        await writeCurrent(await client(), calls);
+      });
+    },
+    async update(change) {
+      await exclusive(async () => {
         const table = await client();
-        const body = JSON.stringify(calls);
-        await table.upsertEntity({ partitionKey: PARTITION, rowKey: ROW, ...packPulse(body) }, "Replace");
+        const current = await readCurrent(table);
+        await writeCurrent(table, await change(current));
       });
     },
   };
+}
+
+async function readCurrent(table: TableClient): Promise<unknown[] | null> {
+  try {
+    const entity = await table.getEntity(PARTITION, ROW);
+    const parsed: unknown = JSON.parse(unpackPulse(entity));
+    if (!Array.isArray(parsed)) throw new Error("Sentiment pulse store is unreadable.");
+    return parsed;
+  } catch (error) {
+    if (statusOf(error) === 404) return null;
+    throw error;
+  }
+}
+
+async function writeCurrent(table: TableClient, calls: unknown[]): Promise<void> {
+  const body = JSON.stringify(calls);
+  await table.upsertEntity({ partitionKey: PARTITION, rowKey: ROW, ...packPulse(body) }, "Replace");
 }
 
 async function openTable(connectionString: string): Promise<TableClient> {
