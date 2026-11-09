@@ -12,10 +12,16 @@ function expect(condition: unknown, message: string) {
   if (!condition) failures.push(message);
 }
 
+const PUBLISHED_PULSE_BASE_URL = "https://sorted-pulse.thankfulflower-819372b8.westus3.azurecontainerapps.io";
+
 const configText = readFileSync(new URL("../public/sentiment-pulse-config.json", import.meta.url), "utf8");
 const config = JSON.parse(configText) as { baseUrl?: string };
-expect(config.baseUrl === SENTIMENT_PULSE_BASE_URL_PLACEHOLDER, "pulse config must keep the named placeholder");
-expect(sentimentPulseUrl(config.baseUrl ?? "") === null, "placeholder must not become a request");
+expect(config.baseUrl === PUBLISHED_PULSE_BASE_URL, "pulse config must name the published host");
+expect(
+  sentimentPulseUrl(config.baseUrl ?? "") === `${PUBLISHED_PULSE_BASE_URL}/api/pulse`,
+  "published host becomes GET /api/pulse",
+);
+expect(sentimentPulseUrl(SENTIMENT_PULSE_BASE_URL_PLACEHOLDER) === null, "placeholder must not become a request");
 expect(!/accountkey|sharedaccesssignature|sorted_storage_connection_string/i.test(configText), "pulse config must not contain a storage key");
 
 expect(sentimentPulseUrl("") === null, "blank base");
