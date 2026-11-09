@@ -1,8 +1,8 @@
 import { BlobServiceClient, type ContainerClient } from "@azure/storage-blob";
 import { CONNECTION_SETTING, INCOMING_CONTAINER, PROCESSED_CONTAINER } from "./layout";
 import { isResultBlob } from "./pulse";
-import { loadScores, reconcilePulse, rememberScore, type PulseLedger } from "./pulseLedger";
-import { tableLedger } from "./pulseTable";
+import { reconcilePulse, rememberScore, type PulseLedger } from "./pulseLedger";
+import { readPulseRecord, tableLedger } from "./pulseTable";
 import { scoreIncoming, scoreOne, type ScoreSummary } from "./run";
 import type { TranscriptStore } from "./store";
 
@@ -25,7 +25,7 @@ export async function scoreDroppedBlob(name: string, bytes: Buffer): Promise<voi
 }
 
 export async function readStoredScores(): Promise<unknown[]> {
-  return loadScores(pulseStore(requiredConnection()));
+  return (await readPulseRecord(requiredConnection())) ?? [];
 }
 
 function pulseStore(connection: string): PulseLedger {

@@ -6,6 +6,9 @@ const PARTITION = "pulse";
 const ROW = "current";
 const CHUNK = 30_000;
 const MAX_BODY = 900_000;
+const READ_ERROR = "Scored results could not be read.";
+
+export const PULSE_READ_MS = 2_000;
 
 export function packPulse(body: string): Record<string, string | number> {
   if (body.length > MAX_BODY) throw new Error("Sentiment pulse store is full.");
@@ -25,6 +28,53 @@ export function unpackPulse(entity: Record<string, unknown>): string {
     body += piece;
   }
   return body;
+}
+
+export function withDeadline<T>(work: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(READ_ERROR)), ms);
+    work.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
+export async function readPulseRecord(
+  connectionString: string,
+  read: (signal: AbortSignal) => Promise<Record<string, unknown> | null> = (signal) => readTableEntity(connectionString, signal),
+  ms = PULSE_READ_MS,
+): Promise<unknown[] | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    const entity = await withDeadline(read(controller.signal), ms);
+    if (!entity) return null;
+    const parsed: unknown = JSON.parse(unpackPulse(entity));
+    if (!Array.isArray(parsed)) throw new Error("Sentiment pulse store is unreadable.");
+    return parsed;
+  } catch (error) {
+    if (statusOf(error) === 404) return null;
+    throw new Error(READ_ERROR);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function readTableEntity(connectionString: string, signal: AbortSignal): Promise<Record<string, unknown>> {
+  let table: TableClient;
+  try {
+    table = TableClient.fromConnectionString(connectionString, PULSE_TABLE, { retryOptions: { maxRetries: 0 } });
+  } catch {
+    throw new Error(`${CONNECTION_SETTING} is not a storage connection string.`);
+  }
+  return table.getEntity(PARTITION, ROW, { abortSignal: signal });
 }
 
 export function tableLedger(connectionString: string): PulseLedger {

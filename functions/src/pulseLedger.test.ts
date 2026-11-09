@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import test from "node:test";
 import { aggregatePulse } from "./pulse";
 import { loadScores, reconcilePulse, rememberScore, seedScores, type PulseLedger } from "./pulseLedger";
-import { packPulse, unpackPulse } from "./pulseTable";
+import { packPulse, readPulseRecord, unpackPulse } from "./pulseTable";
 import type { ScoredRecord } from "./run";
 
 test("a successful score is stored for one pulse read", async () => {
@@ -57,6 +59,32 @@ test("result json that is still present keeps the stored pulse", async () => {
   });
   assert.equal(loads, 0);
   assert.equal((await loadScores(ledger)).length, 1);
+});
+
+test("a pulse read returns the one table record and does not wait on a stuck call", async () => {
+  const entity = packPulse(JSON.stringify([{ file: "a.json", sentiment: "positive", npsBand: "promoter", scoredAt: "2026-11-08T00:00:00.000Z" }]));
+  const calls = await readPulseRecord("UseDevelopmentStorage=true", async () => entity, 1_000);
+  assert.equal(calls?.[0] && (calls[0] as { file: string }).file, "a.json");
+
+  const started = Date.now();
+  await assert.rejects(
+    () => readPulseRecord("UseDevelopmentStorage=true", () => new Promise(() => undefined), 40),
+    /could not be read/,
+  );
+  assert.ok(Date.now() - started < 1_000);
+
+  const missing = Object.assign(new Error("missing"), { statusCode: 404 });
+  assert.equal(await readPulseRecord("UseDevelopmentStorage=true", async () => { throw missing; }, 1_000), null);
+});
+
+test("the pulse request does not share the poll lock or list blobs", () => {
+  const table = readFileSync(resolve(__dirname, "pulseTable.ts"), "utf8");
+  const request = table.slice(table.indexOf("export async function readPulseRecord"), table.indexOf("async function readTableEntity"));
+  assert.doesNotMatch(request, /createTable|exclusive|listBlobs|seedStore/);
+  const azure = readFileSync(resolve(__dirname, "azure.ts"), "utf8");
+  const reader = azure.slice(azure.indexOf("export async function readStoredScores"), azure.indexOf("function pulseStore"));
+  assert.match(reader, /readPulseRecord/);
+  assert.doesNotMatch(reader, /seedStore|scoreIncoming|listResultRecords|pulseStore/);
 });
 
 test("the table entity round-trips a pulse larger than one property", () => {
