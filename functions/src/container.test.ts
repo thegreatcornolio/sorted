@@ -51,4 +51,6 @@ test("the image runs the poller and does not bake a connection string", () => {
   assert.doesNotMatch(dockerfile, /AccountKey|SharedAccessSignature|DefaultEndpointsProtocol/);
   assert.match(ignore, /local\.settings\.json/);
   assert.doesNotMatch(source, /loadLocalSettings/);
+  assert.doesNotMatch(source, /readScoredResults/);
+  assert.match(source, /readStoredScores/);
 });

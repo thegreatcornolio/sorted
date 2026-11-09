@@ -7,10 +7,23 @@ export type ScoreSummary = {
   failed: { file: string; error: string }[];
 };
 
+export type ScoredRecord = {
+  file: string;
+  sentiment: TranscriptScore["sentiment"];
+  mix: TranscriptScore["mix"];
+  nps: number | null;
+  npsBand: TranscriptScore["npsBand"];
+  reason: string | null;
+  evidence: string | null;
+  company: string | null;
+  scoredAt: string;
+};
+
 export async function scoreIncoming(
   incoming: TranscriptStore,
   processed: TranscriptStore,
   now: () => Date = () => new Date(),
+  onScored?: (record: ScoredRecord) => Promise<void>,
 ): Promise<ScoreSummary> {
   const listed = await incoming.list();
   const summary: ScoreSummary = { scored: [], failed: [] };
@@ -23,7 +36,7 @@ export async function scoreIncoming(
       summary.failed.push({ file: blob.name, error: messageOf(error) });
       continue;
     }
-    const outcome = await scoreOne(incoming, processed, blob.name, bytes, now);
+    const outcome = await scoreOne(incoming, processed, blob.name, bytes, now, onScored);
     if (outcome.status === "scored") summary.scored.push(outcome.file);
     else summary.failed.push({ file: outcome.file, error: outcome.error });
   }
@@ -36,6 +49,7 @@ export async function scoreOne(
   name: string,
   bytes: Buffer,
   now: () => Date = () => new Date(),
+  onScored?: (record: ScoredRecord) => Promise<void>,
 ): Promise<{ status: "scored"; file: string } | { status: "failed"; file: string; error: string }> {
   let safe: string;
   try {
@@ -47,7 +61,9 @@ export async function scoreOne(
   const errorName = `${RESULTS_PREFIX}${safe}.error.json`;
   try {
     const score = scoreTranscript(safe, bytes);
-    await processed.write(resultName, jsonBuffer(resultBody(score, now().toISOString())), "application/json; charset=utf-8");
+    const record = resultBody(score, now().toISOString());
+    await processed.write(resultName, jsonBuffer(record), "application/json; charset=utf-8");
+    if (onScored) await onScored(record);
     try {
       await processed.write(safe, bytes, contentType(safe));
       await incoming.remove(safe);
@@ -73,7 +89,7 @@ export function transcriptName(name: string): string {
   return name;
 }
 
-function resultBody(score: TranscriptScore, scoredAt: string) {
+function resultBody(score: TranscriptScore, scoredAt: string): ScoredRecord {
   return {
     file: score.file,
     sentiment: score.sentiment,

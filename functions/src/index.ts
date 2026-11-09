@@ -1,5 +1,5 @@
 import { app, type HttpRequest, type HttpResponseInit, type InvocationContext } from "@azure/functions";
-import { readScoredResults, scoreDroppedBlob } from "./azure";
+import { readStoredScores, scoreDroppedBlob } from "./azure";
 import { CONNECTION_SETTING, INCOMING_CONTAINER } from "./layout";
 import { PULSE_ROUTE, pulseHttp } from "./pulse";
 
@@ -12,7 +12,7 @@ export async function scoreIncomingBlob(blob: unknown, context: InvocationContex
 export async function sentimentPulse(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   if (request.method === "OPTIONS") return toResponse(pulseHttp("OPTIONS", []));
   try {
-    return toResponse(pulseHttp(request.method, await readScoredResults()));
+    return toResponse(pulseHttp(request.method, await readStoredScores()));
   } catch (error) {
     context.error(error);
     const fallback = pulseHttp("GET", []);

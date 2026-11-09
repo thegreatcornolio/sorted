@@ -1,5 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { readScoredResults, scoreIncomingFromEnv } from "./azure";
+import { readStoredScores, scoreIncomingFromEnv } from "./azure";
 import { pulseHttp } from "./pulse";
 
 export const PULSE_PATH = "/api/pulse";
@@ -62,7 +62,7 @@ export async function pollForever(sleep: (ms: number) => Promise<void> = delay):
 }
 
 async function respond(request: IncomingMessage, response: ServerResponse): Promise<void> {
-  const result = await handleContainerRequest(request.method ?? "GET", request.url ?? "/", readScoredResults);
+  const result = await handleContainerRequest(request.method ?? "GET", request.url ?? "/", readStoredScores);
   response.writeHead(result.status, result.headers);
   response.end(result.body);
 }

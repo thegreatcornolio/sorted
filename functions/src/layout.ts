@@ -6,4 +6,6 @@ export const PROCESSED_CONTAINER = "processedtranscripts";
 
 export const RESULTS_PREFIX = "results/";
 
+export const PULSE_TABLE = "SentimentPulse";
+
 export const MAX_TRANSCRIPT_BYTES = 2 * 1024 * 1024;
