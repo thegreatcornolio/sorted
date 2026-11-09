@@ -14,7 +14,7 @@ npm run dev
 - Interaction desk: http://localhost:3000/interactions and http://localhost:3000/nadclinic
 - Score model: http://localhost:3000/scoring
 
-The main page reads `GET /api/pulse` on the Azure Function, the aggregate of processed transcripts. The Function App origin is the public `baseUrl` in `public/sentiment-pulse-config.json`. Until that host is published, the value is the placeholder `SENTIMENT_PULSE_BASE_URL`. The path is `/api/pulse`. A build can set `NEXT_PUBLIC_SENTIMENT_PULSE_BASE_URL` to the same origin. These call transcripts have no channel field, and the page does not add one. The site does not contain a storage key.
+The main page reads `GET /api/pulse` on the Azure Function, the aggregate of processed transcripts. The Function App origin is the public `baseUrl` in `public/sentiment-pulse-config.json`: `https://sorted-pulse.thankfulflower-819372b8.westus3.azurecontainerapps.io`. The path is `/api/pulse`. A build can set `NEXT_PUBLIC_SENTIMENT_PULSE_BASE_URL` to the same origin. These call transcripts have no channel field, and the page does not add one. The site does not contain a storage key.
 
 The demo at `/demo` is the simulated queue. The main page has a button that opens it. That demo Sentiment Pulse uses the same queue as its NPS and CSAT dials.
 
