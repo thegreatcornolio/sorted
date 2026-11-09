@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "start": "npm run build && func start",
+    "start": "npm run build && node dist/container.js",
     "once": "tsx src/once.ts",
     "upload": "tsx src/uploadServer.ts",
     "check": "node --import tsx --test src/*.test.ts"
