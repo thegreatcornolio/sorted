@@ -12,10 +12,10 @@ The same container serves `GET /api/pulse`. sorted.trilogybpo.com can call it wi
 
 The storage connection is the environment variable `SORTED_STORAGE_CONNECTION_STRING`. Do not commit it. The image does not contain it. The process reads that variable only, and it listens on port 8080.
 
-From the repo root, build the image with:
+The image build uses the repo root as its context and `functions/Dockerfile`, so it compiles this package with `tsc` and does not run the site build. From the repo root:
 
 ```bash
-docker build -t sorted-transcripts functions
+docker build -f functions/Dockerfile -t sorted-transcripts .
 ```
 
 `npm run upload` serves a local page at http://127.0.0.1:8787/. That page is not on sorted.trilogybpo.com. It only puts files in `incomingtranscripts`. The container scores them, and successes move to `processedtranscripts`.

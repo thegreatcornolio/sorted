@@ -41,6 +41,10 @@ test("the image runs the poller and does not bake a connection string", () => {
   const dockerfile = readFileSync(resolve(__dirname, "../Dockerfile"), "utf8");
   const ignore = readFileSync(resolve(__dirname, "../.dockerignore"), "utf8");
   const source = readFileSync(resolve(__dirname, "container.ts"), "utf8");
+  assert.match(dockerfile, /COPY functions\/package\.json functions\/package-lock\.json \.\//);
+  assert.match(dockerfile, /COPY functions\/tsconfig\.json \.\//);
+  assert.match(dockerfile, /COPY functions\/src \.\/src/);
+  assert.doesNotMatch(dockerfile, /^COPY package\.json/m);
   assert.match(dockerfile, /CMD \["node", "dist\/container\.js"\]/);
   assert.doesNotMatch(dockerfile, /\bfunc\b/);
   assert.doesNotMatch(dockerfile, /SORTED_STORAGE_CONNECTION_STRING\s*=/);
