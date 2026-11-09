@@ -1,24 +1,47 @@
 import { BlobServiceClient, type ContainerClient } from "@azure/storage-blob";
 import { CONNECTION_SETTING, INCOMING_CONTAINER, PROCESSED_CONTAINER } from "./layout";
 import { isResultBlob } from "./pulse";
+import { loadScores, reconcilePulse, rememberScore, type PulseLedger } from "./pulseLedger";
+import { tableLedger } from "./pulseTable";
 import { scoreIncoming, scoreOne, type ScoreSummary } from "./run";
 import type { TranscriptStore } from "./store";
 
+let ledger: PulseLedger | null = null;
+
 export async function scoreIncomingFromEnv(): Promise<ScoreSummary> {
-  const { incoming, processed } = await openStores(requiredConnection());
-  return scoreIncoming(incoming, processed);
+  const connection = requiredConnection();
+  const { incoming, processed } = await openStores(connection);
+  const store = pulseStore(connection);
+  await seedStore(store, processed);
+  return scoreIncoming(incoming, processed, () => new Date(), (record) => rememberScore(store, record));
 }
 
 export async function scoreDroppedBlob(name: string, bytes: Buffer): Promise<void> {
-  const { incoming, processed } = await openStores(requiredConnection());
-  await scoreOne(incoming, processed, name, bytes);
+  const connection = requiredConnection();
+  const { incoming, processed } = await openStores(connection);
+  const store = pulseStore(connection);
+  await seedStore(store, processed);
+  await scoreOne(incoming, processed, name, bytes, () => new Date(), (record) => rememberScore(store, record));
 }
 
-export async function readScoredResults(): Promise<unknown[]> {
-  const { processed } = await openStores(requiredConnection());
-  const listed = await processed.list();
+export async function readStoredScores(): Promise<unknown[]> {
+  return loadScores(pulseStore(requiredConnection()));
+}
+
+function pulseStore(connection: string): PulseLedger {
+  ledger ??= tableLedger(connection);
+  return ledger;
+}
+
+async function seedStore(store: PulseLedger, processed: TranscriptStore): Promise<void> {
+  const names = await processed.list();
+  const hasResults = names.some((blob) => isResultBlob(blob.name));
+  await reconcilePulse(store, hasResults, () => listResultRecords(processed));
+}
+
+async function listResultRecords(processed: TranscriptStore): Promise<unknown[]> {
   const results: unknown[] = [];
-  for (const blob of listed) {
+  for (const blob of await processed.list()) {
     if (!isResultBlob(blob.name)) continue;
     try {
       results.push(JSON.parse((await processed.read(blob.name)).toString("utf8")) as unknown);

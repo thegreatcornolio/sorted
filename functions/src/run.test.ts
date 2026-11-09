@@ -153,6 +153,19 @@ test("a blob that cannot be scored stays in incoming and gets an error file", as
   assert.match(error.error, /empty/i);
 });
 
+test("a store failure leaves the transcript in incoming", async () => {
+  const incoming = new MemoryStore({ "call.txt": "Customer: Really pleased." });
+  const processed = new MemoryStore();
+  const outcome = await scoreOne(incoming, processed, "call.txt", Buffer.from("Customer: Really pleased."), now, async () => {
+    throw new Error("Sentiment pulse store is full.");
+  });
+  assert.equal(outcome.status, "failed");
+  assert.equal(incoming.blobs.has("call.txt"), true);
+  assert.equal(processed.blobs.has("call.txt"), false);
+  const error = JSON.parse(processed.blobs.get("results/call.txt.error.json")?.body.toString() ?? "") as { error: string };
+  assert.match(error.error, /store is full/);
+});
+
 test("transcript names are the blob names in the container", () => {
   assert.equal(transcriptName("team/call.txt"), "team/call.txt");
   assert.throws(() => transcriptName("../call.txt"), /not a file/);

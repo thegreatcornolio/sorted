@@ -5,12 +5,13 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "start": "npm run build && func start",
+    "start": "npm run build && node dist/container.js",
     "once": "tsx src/once.ts",
     "upload": "tsx src/uploadServer.ts",
     "check": "node --import tsx --test src/*.test.ts"
   },
   "dependencies": {
+    "@azure/data-tables": "^13.3.2",
     "@azure/functions": "^4.6.0",
     "@azure/storage-blob": "^12.26.0"
   },
