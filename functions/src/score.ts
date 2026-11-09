@@ -53,6 +53,10 @@ const THEMES: { reason: string; pattern: RegExp }[] = [
     reason: "The problem was not resolved",
     pattern: /unresolved|not resolved|couldn't help|could not help|didn't help|did not help|unable to help|not sorted|didn't work|did not work|this failed|it failed/i,
   },
+  {
+    reason: "They did not want the cover",
+    pattern: /don't want|do not want|not interested|no thanks|rather not|don't need|do not need/i,
+  },
 ];
 
 const NEGATIVE = [
@@ -152,21 +156,40 @@ const CALL_HARM = [
   /\bspeak to (?:a |the )?(?:manager|supervisor)\b/i,
 ];
 
+const CALL_UNEASE = [
+  /\bproblem\b/i,
+  /\bissue\b/i,
+  /\bnot (?:great|good|helpful|right)\b/i,
+  /\bwas(?:n't| not) (?:great|helpful|right)\b/i,
+  /\b(?:a bit|a little|quite|pretty|really) (?:unhappy|annoyed|upset|disappointed)\b/i,
+  /\b(?:don't|do not) need\b/i,
+  /\bno thanks\b/i,
+  /\brather not\b/i,
+  /\bnot today\b/i,
+  /\bthis is(?:n't| not)\b/i,
+  /\bnot what I\b/i,
+  /\bwrong\b/i,
+  /\bmistake\b/i,
+  /\bconcern(?:ed)?\b/i,
+  /\bworried\b/i,
+  /\bconfused\b/i,
+  /\b(?:don't|do not) understand\b/i,
+  /\bhold(?:ing)?\b/i,
+  /\bfed up\b/i,
+  /\bcomplain(?:t|ed|ing)?\b/i,
+];
+
 const CALL_PLEASED = [
   /\breally pleased\b/i,
+  /\b(?:i am|i'm|im) (?:really |very |so )?pleased\b/i,
   /\bvery happy\b/i,
   /\bdelighted\b/i,
-  /\bexcellent\b/i,
-  /\bbrilliant\b/i,
-  /\bwonderful\b/i,
-  /\bperfect\b/i,
-  /\bspot on\b/i,
-  /\bgo ahead\b/i,
-  /\bi(?:'|’)ll take it\b/i,
+  /\bthat was excellent\b/i,
+  /\bthat was (?:brilliant|wonderful|perfect)\b/i,
+  /\bi(?:'|’)ll take (?:it|the|this)\b/i,
   /\bhappy to proceed\b/i,
-  /\bsounds good\b/i,
   /\bsign me up\b/i,
-  /\bpleased\b/i,
+  /\bi want to go ahead\b/i,
 ];
 
 const DRIVERS: { reason: string; pattern: RegExp }[] = [
@@ -254,12 +277,15 @@ function finishCsat(csat: number): { csat: number; csatBand: CsatBand } {
 function judgeCall(text: string): { sentiment: Sentiment; band: NpsBand; csat: number } {
   const spoken = withoutGreeting(text);
   const harm = count(spoken, CALL_HARM);
+  const uneasy = count(spoken, CALL_UNEASE);
   const pleased = count(spoken, CALL_PLEASED);
-  const mild = count(spoken, MILD);
-  if (harm > 0) return { sentiment: "negative", band: "detractor", csat: harm >= 2 || harm > pleased ? 1 : 2 };
-  if (pleased > 0) return { sentiment: "positive", band: "promoter", csat: pleased >= 2 ? 5 : 4 };
-  if (mild > 0) return { sentiment: "mixed", band: "passive", csat: 3 };
-  return { sentiment: "mixed", band: "passive", csat: 3 };
+  const undecided = count(spoken, MILD);
+  const complaint = harm > 0 || uneasy > 0;
+  if (!complaint && pleased > 0 && undecided === 0) {
+    return { sentiment: "positive", band: "promoter", csat: pleased >= 2 ? 5 : 4 };
+  }
+  if (!complaint && undecided > 0) return { sentiment: "mixed", band: "passive", csat: 3 };
+  return { sentiment: "negative", band: "detractor", csat: harm > 0 || uneasy >= 2 ? 1 : 2 };
 }
 
 function withoutGreeting(text: string): string {

@@ -190,13 +190,41 @@ test("a frustrated or unresolved call is a detractor with low csat", () => {
   assert.equal(text.includes(result.evidence ?? ""), true);
 });
 
-test("a greeting without a real outcome stays passive", () => {
+test("a call with no clear outcome is a detractor, not passive", () => {
   const text = "Thank you for calling. Have a great day. The policy documents are in the post.";
   const result = score(JSON.stringify(asr(text, 0.9)));
   assert.equal(result.nps, null);
-  assert.equal(result.npsBand, "passive");
-  assert.equal(result.csat, 3);
-  assert.equal(result.csatBand, "neutral");
+  assert.equal(result.npsBand, "detractor");
+  assert.equal(result.sentiment, "negative");
+  assert.ok(result.csat <= 2);
+  assert.equal(result.csatBand, "negative");
+});
+
+test("agent filler is not a promoter and mild complaints are detractors", () => {
+  const batch: [string, string][] = [
+    ["Thank you for calling. I'll go ahead and update that. Perfect. That sounds good.", "detractor"],
+    ["I've got a problem with the payment. The bill doesn't look right.", "detractor"],
+    ["No, I don't want the cover.", "detractor"],
+    ["I was on hold and nobody came back to me.", "detractor"],
+    ["Please cancel it. I'm a bit unhappy about the charge.", "detractor"],
+    ["I will think about it. I am still deciding.", "passive"],
+    ["Thank you, that was excellent and I am really pleased.", "promoter"],
+  ];
+  const bands = batch.map(([text]) => score(JSON.stringify(asr(text, 0.9))).npsBand);
+  assert.deepEqual(bands, batch.map(([, band]) => band));
+  assert.ok(bands.includes("detractor"));
+  for (const [text, band] of batch) {
+    const result = score(JSON.stringify(asr(text, 0.9)));
+    assert.equal(result.nps, null);
+    if (band === "detractor") {
+      assert.ok(result.csat <= 2);
+      assert.equal(result.csatBand, "negative");
+      assert.equal(result.sentiment, "negative");
+    }
+    if (band === "promoter") assert.ok(result.csat >= 4);
+    if (band === "passive") assert.equal(result.csat, 3);
+    assert.equal(text.includes(result.evidence ?? ""), true);
+  }
 });
 
 test("a clearly pleased call keeps a high csat", () => {
