@@ -123,7 +123,7 @@ export function LiveOverview() {
 
   return (
     <>
-      <SiteHeader>
+      <SiteHeader current="live">
         <span className="live-pill" data-testid="live-status">
           <span className={phase === "waiting" ? "dot is-on" : "dot"} aria-hidden="true" />
           {status}
