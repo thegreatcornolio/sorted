@@ -15,6 +15,36 @@ test("GET /api/pulse returns the aggregate and only the site origin", async () =
   assert.equal("nps" in body, false);
 });
 
+test("POST /api/clear-results returns an empty pulse and GET does not clear", async () => {
+  let cleared = 0;
+  const clearedResponse = await handleContainerRequest(
+    "POST",
+    "/api/clear-results",
+    async () => {
+      throw new Error("clear must not read scores");
+    },
+    async () => {
+      cleared += 1;
+    },
+  );
+  assert.equal(cleared, 1);
+  assert.equal(clearedResponse.status, 200);
+  assert.equal(clearedResponse.headers["Access-Control-Allow-Origin"], "https://sorted.trilogybpo.com");
+  const body = JSON.parse(clearedResponse.body) as { total: number; csat: number | null; promoters: number; detractors: number };
+  assert.equal(body.total, 0);
+  assert.equal(body.csat, null);
+  assert.equal(body.promoters, 0);
+  assert.equal(body.detractors, 0);
+  assert.equal("nps" in body, false);
+
+  cleared = 0;
+  const read = await handleContainerRequest("GET", "/api/pulse", async () => [], async () => {
+    cleared += 1;
+  });
+  assert.equal(read.status, 200);
+  assert.equal(cleared, 0);
+});
+
 test("the pulse path answers a browser preflight and hides storage errors", async () => {
   const preflight = await handleContainerRequest("OPTIONS", `${PULSE_PATH}?x=1`, async () => {
     throw new Error("unused");

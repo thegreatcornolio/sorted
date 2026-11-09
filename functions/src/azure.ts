@@ -33,6 +33,15 @@ function pulseStore(connection: string): PulseLedger {
   return ledger;
 }
 
+export async function clearStoredScores(): Promise<void> {
+  const connection = requiredConnection();
+  const { processed } = await openStores(connection);
+  for (const blob of await processed.list()) {
+    if (isResultBlob(blob.name)) await processed.remove(blob.name);
+  }
+  await pulseStore(connection).write([]);
+}
+
 async function seedStore(store: PulseLedger, processed: TranscriptStore): Promise<void> {
   const names = await processed.list();
   const hasResults = names.some((blob) => isResultBlob(blob.name));

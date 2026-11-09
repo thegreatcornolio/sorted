@@ -13,6 +13,8 @@ export type ScoredRecord = {
   mix: TranscriptScore["mix"];
   nps: number | null;
   npsBand: TranscriptScore["npsBand"];
+  csat: number;
+  csatBand: TranscriptScore["csatBand"];
   reason: string | null;
   evidence: string | null;
   company: string | null;
@@ -96,6 +98,8 @@ function resultBody(score: TranscriptScore, scoredAt: string): ScoredRecord {
     mix: score.mix,
     nps: score.nps,
     npsBand: score.npsBand,
+    csat: score.csat,
+    csatBand: score.csatBand,
     reason: score.reason,
     evidence: score.evidence,
     company: score.company,

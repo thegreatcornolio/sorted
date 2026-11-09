@@ -9,6 +9,7 @@ test("an empty processed container is an empty pulse", () => {
     mix: { positive: 0, neutral: 0, negative: 0 },
     promoters: 0,
     detractors: 0,
+    csat: null,
     reasons: [],
     evidence: null,
     movement: [],
@@ -99,6 +100,17 @@ test("plain text with no band stays out of the promoter and detractor counts", (
   assert.equal(pulse.detractors, 0);
   assert.deepEqual(pulse.reasons, []);
   assert.equal(pulse.evidence, null);
+});
+
+test("average csat is the mean of scored calls", () => {
+  const pulse = aggregatePulse([
+    { ...call({ file: "low.json", sentiment: "negative", nps: null, npsBand: "detractor", reason: "The problem was not resolved", evidence: "This is unresolved.", scoredAt: "2026-11-08T11:00:00.000Z" }), csat: 1 },
+    { ...call({ file: "high.json", sentiment: "positive", nps: null, npsBand: "promoter", reason: "They were pleased with the call", evidence: "Excellent.", scoredAt: "2026-11-08T12:00:00.000Z" }), csat: 4 },
+    call({ file: "old.json", sentiment: "mixed", nps: null, npsBand: null, reason: null, evidence: "Hello.", scoredAt: "2026-11-08T10:00:00.000Z" }),
+  ]);
+  assert.equal(pulse.csat, 2.5);
+  assert.equal(pulse.total, 3);
+  assert.equal("nps" in pulse, false);
 });
 
 test("result names are the JSON files under results, not the error files", () => {
