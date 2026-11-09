@@ -193,10 +193,15 @@ const CALL_PLEASED = [
 ];
 
 const DRIVERS: { reason: string; pattern: RegExp }[] = [
+  { reason: "They booked the appointment", pattern: /see you tomorrow|i(?:'|’)ll see you|payment was successful|see you then/i },
   { reason: "They were ready to go ahead", pattern: /go ahead|i'll take it|happy to proceed|sounds good/i },
   { reason: "They were pleased with the call", pattern: /pleased|thank you|excellent|helpful|great/i },
   { reason: "They were still deciding", pattern: /think about it|not sure|maybe later|still deciding|still cautious|waiting to see/i },
 ];
+
+const RESOLVED = /see you tomorrow|i(?:'|’)ll see you|payment was successful|see you then/i;
+const FAILED = /\bcancel|\b(?:don't|do not) want\b|\bnot interested\b|\bnot going ahead\b|\bunresolved\b|\bnot resolved\b|\b(?:couldn't|could not|didn't|did not) help\b|\b(?:nobody|no one) called\b|\bhung up\b|\b(?:don't|do not) need\b|\bno thanks\b/i;
+const COMPLAINT = /pure evil|\byikes\b|\bno availability\b|\btoo expensive\b|\bcan't afford\b|\bconcern(?:ed)?\b|\bworried\b|\bfrustrat|\bunhappy\b|\bnot happy\b|\bridiculous\b|\bawful\b|\bterrible\b|\bwaste of time\b|\bangry\b|\bfurious\b/i;
 
 const SCORE_LINE = /^\s*(?:nps|score)(?:\s*[:=]\s*|\s+)(\d{1,2})(?:\s*\/\s*10)?\s*$/i;
 const COMPANY_LINE = /^\s*company\s*:\s*(.+?)\s*$/i;
@@ -276,16 +281,31 @@ function finishCsat(csat: number): { csat: number; csatBand: CsatBand } {
 
 function judgeCall(text: string): { sentiment: Sentiment; band: NpsBand; csat: number } {
   const spoken = withoutGreeting(text);
+  const sentences = sentencesOf(spoken);
+  let resolvedAt = -1;
+  let failedAt = -1;
+  sentences.forEach((sentence, index) => {
+    if (RESOLVED.test(sentence)) resolvedAt = index;
+    if (FAILED.test(sentence)) failedAt = index;
+  });
+  const resolved = resolvedAt >= 0 && resolvedAt >= failedAt;
+  const failed = failedAt >= 0 && failedAt > resolvedAt;
   const harm = count(spoken, CALL_HARM);
   const uneasy = count(spoken, CALL_UNEASE);
   const pleased = count(spoken, CALL_PLEASED);
   const undecided = count(spoken, MILD);
-  const complaint = harm > 0 || uneasy > 0;
-  if (!complaint && pleased > 0 && undecided === 0) {
+  const complained = COMPLAINT.test(spoken) || harm > 0 || uneasy > 0;
+  if (resolved && !failed) {
+    return { sentiment: "positive", band: "promoter", csat: complained ? 4 : pleased >= 2 ? 5 : 4 };
+  }
+  if (failed || (complained && undecided === 0)) {
+    return { sentiment: "negative", band: "detractor", csat: failed || harm > 0 || uneasy >= 2 ? 1 : 2 };
+  }
+  if (!complained && pleased > 0 && undecided === 0) {
     return { sentiment: "positive", band: "promoter", csat: pleased >= 2 ? 5 : 4 };
   }
-  if (!complaint && undecided > 0) return { sentiment: "mixed", band: "passive", csat: 3 };
-  return { sentiment: "negative", band: "detractor", csat: harm > 0 || uneasy >= 2 ? 1 : 2 };
+  if (!complained && undecided > 0) return { sentiment: "mixed", band: "passive", csat: 3 };
+  return { sentiment: "negative", band: "detractor", csat: 2 };
 }
 
 function withoutGreeting(text: string): string {
@@ -306,21 +326,37 @@ function reasonFor(band: NpsBand, text: string): string {
   return band === "promoter" ? "They were pleased with the call" : "They were still deciding";
 }
 
-function quoteFrom(text: string, band: NpsBand, reason: string): string {
+function sentencesOf(text: string): string[] {
   const parts = text
     .split(/(?<=[.!?])\s+/)
     .map((part) => part.trim())
     .filter(Boolean);
-  const sentences = parts.length ? parts : [text.trim()];
+  return parts.length ? parts : [text.trim()];
+}
+
+function realSentence(part: string): boolean {
+  const words = part
+    .replace(/\[[A-Za-z0-9_]+\]/g, " ")
+    .replace(/[^A-Za-z']+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter((word) => word.length >= 2);
+  return words.length >= 4;
+}
+
+function quoteFrom(text: string, band: NpsBand, reason: string): string {
+  const sentences = sentencesOf(text);
+  const usable = sentences.filter(realSentence);
+  const pool = usable.length ? usable : sentences.filter((part) => /[A-Za-z]{3,}/.test(part));
   const theme = [...THEMES, ...DRIVERS].find((item) => item.reason === reason);
-  const matched = theme ? sentences.find((part) => theme.pattern.test(part)) : undefined;
+  const matched = theme ? pool.find((part) => theme.pattern.test(part) && realSentence(part)) : undefined;
   if (matched) return clipQuote(text, matched);
-  const ranked = sentences.map((part) => ({ part, ...lineSignal(part) }));
+  const ranked = pool.map((part) => ({ part, ...lineSignal(part) }));
   const best =
     band === "detractor"
-      ? [...ranked].sort((a, b) => b.negative - a.negative || a.part.length - b.part.length)[0]
+      ? [...ranked].sort((a, b) => b.negative - a.negative || b.part.length - a.part.length)[0]
       : band === "promoter"
-        ? [...ranked].sort((a, b) => b.positive - a.positive || a.part.length - b.part.length)[0]
+        ? [...ranked].sort((a, b) => b.positive - a.positive || b.part.length - a.part.length)[0]
         : (ranked.find((part) => part.negative > 0 && part.positive > 0) ?? ranked[0]);
   return clipQuote(text, best?.part ?? text.trim());
 }

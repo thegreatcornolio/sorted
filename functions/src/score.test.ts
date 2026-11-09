@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import test from "node:test";
 import { MAX_TRANSCRIPT_BYTES } from "./layout";
 import { scoreTranscript } from "./score";
@@ -225,6 +227,29 @@ test("agent filler is not a promoter and mild complaints are detractors", () => 
     if (band === "passive") assert.equal(result.csat, 3);
     assert.equal(text.includes(result.evidence ?? ""), true);
   }
+});
+
+test("a booked and paid windshield call is a promoter with csat 4", () => {
+  const text = readFileSync(resolve(__dirname, "fixtures/windshield-call.txt"), "utf8").trim();
+  const result = score(JSON.stringify(asr(text, 0.92)), "windshield.txt");
+  assert.equal(result.nps, null);
+  assert.equal(result.npsBand, "promoter");
+  assert.equal(result.csat, 4);
+  assert.equal(result.csatBand, "positive");
+  assert.equal(result.sentiment, "positive");
+  assert.equal(result.reason, "They booked the appointment");
+  assert.equal(result.evidence === "O." || result.evidence === "Yes." || result.evidence === "Okay.", false);
+  assert.ok((result.evidence ?? "").split(/\s+/).length >= 4);
+  assert.equal(text.includes(result.evidence ?? ""), true);
+  assert.match(result.evidence ?? "", /see you tomorrow/i);
+});
+
+test("a cancellation after a promised visit stays a detractor", () => {
+  const text = "I'll see you tomorrow. Actually, cancel it. I don't want this.";
+  const result = score(JSON.stringify(asr(text, 0.9)));
+  assert.equal(result.npsBand, "detractor");
+  assert.ok(result.csat <= 2);
+  assert.equal(result.csatBand, "negative");
 });
 
 test("a clearly pleased call keeps a high csat", () => {
