@@ -1,9 +1,10 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { clearStoredScores, readStoredScores, scoreIncomingFromEnv } from "./azure";
+import { clearStoredScores, clearStoredTranscripts, readStoredScores, scoreIncomingFromEnv } from "./azure";
 import { pulseHttp } from "./pulse";
 
 export const PULSE_PATH = "/api/pulse";
 export const CLEAR_PATH = "/api/clear-results";
+export const CLEAR_TRANSCRIPTS_PATH = "/api/clear-transcripts";
 export const POLL_MS = 15_000;
 export const CONTAINER_PORT = 8080;
 
@@ -12,9 +13,11 @@ export async function handleContainerRequest(
   url: string,
   readResults: () => Promise<unknown[]>,
   clearResults: () => Promise<void> = async () => undefined,
+  clearTranscripts: () => Promise<void> = async () => undefined,
 ): Promise<{ status: number; headers: Record<string, string>; body: string }> {
   const path = (url.split("?")[0] ?? "/") || "/";
-  if (path === CLEAR_PATH) return clearResponse(method, clearResults);
+  if (path === CLEAR_TRANSCRIPTS_PATH) return clearResponse(method, clearTranscripts, "Stored transcripts could not be cleared.");
+  if (path === CLEAR_PATH) return clearResponse(method, clearResults, "Scored results could not be cleared.");
   if (path !== PULSE_PATH) {
     return { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8" }, body: "Not found" };
   }
@@ -66,7 +69,8 @@ export async function pollForever(sleep: (ms: number) => Promise<void> = delay):
 
 async function clearResponse(
   method: string,
-  clearResults: () => Promise<void>,
+  clear: () => Promise<void>,
+  failure: string,
 ): Promise<{ status: number; headers: Record<string, string>; body: string }> {
   if (method === "OPTIONS") return pulseHttp("OPTIONS", []);
   if (method !== "POST") {
@@ -74,20 +78,26 @@ async function clearResponse(
     return { status: 405, headers: { ...allowed.headers, Allow: "POST, OPTIONS" }, body: "" };
   }
   try {
-    await clearResults();
+    await clear();
     return pulseHttp("GET", []);
   } catch {
     const fallback = pulseHttp("GET", []);
     return {
       status: 500,
       headers: fallback.headers,
-      body: `${JSON.stringify({ error: "Scored results could not be cleared." })}\n`,
+      body: `${JSON.stringify({ error: failure })}\n`,
     };
   }
 }
 
 async function respond(request: IncomingMessage, response: ServerResponse): Promise<void> {
-  const result = await handleContainerRequest(request.method ?? "GET", request.url ?? "/", readStoredScores, clearStoredScores);
+  const result = await handleContainerRequest(
+    request.method ?? "GET",
+    request.url ?? "/",
+    readStoredScores,
+    clearStoredScores,
+    clearStoredTranscripts,
+  );
   response.writeHead(result.status, result.headers);
   response.end(result.body);
 }

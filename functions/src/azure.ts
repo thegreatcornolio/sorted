@@ -42,6 +42,28 @@ export async function clearStoredScores(): Promise<void> {
   await pulseStore(connection).write([]);
 }
 
+export async function clearStoredTranscripts(): Promise<void> {
+  const connection = requiredConnection();
+  const { processed } = await openStores(connection);
+  await deleteEveryBlob(processed);
+  await pulseStore(connection).write([]);
+}
+
+export async function deleteEveryBlob(store: TranscriptStore): Promise<void> {
+  const names = (await store.list()).map((blob) => blob.name).filter((name) => !name.endsWith("/"));
+  let next = 0;
+  const workers = Array.from({ length: Math.min(8, names.length) }, async () => {
+    for (;;) {
+      const index = next;
+      next += 1;
+      const name = names[index];
+      if (!name) return;
+      await store.remove(name);
+    }
+  });
+  await Promise.all(workers);
+}
+
 async function seedStore(store: PulseLedger, processed: TranscriptStore): Promise<void> {
   const names = await processed.list();
   const hasResults = names.some((blob) => isResultBlob(blob.name));

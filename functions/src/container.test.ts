@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
-import { handleContainerRequest, pollError, PULSE_PATH } from "./container";
+import { CLEAR_TRANSCRIPTS_PATH, handleContainerRequest, pollError, PULSE_PATH } from "./container";
 import { SITE_ORIGIN } from "./pulse";
 
 test("GET /api/pulse returns the aggregate and only the site origin", async () => {
@@ -43,6 +43,39 @@ test("POST /api/clear-results returns an empty pulse and GET does not clear", as
   });
   assert.equal(read.status, 200);
   assert.equal(cleared, 0);
+});
+
+test("POST /api/clear-transcripts empties storage only after that route is called", async () => {
+  let scores = 0;
+  let transcripts = 0;
+  const response = await handleContainerRequest(
+    "POST",
+    CLEAR_TRANSCRIPTS_PATH,
+    async () => {
+      throw new Error("clear must not read scores");
+    },
+    async () => {
+      scores += 1;
+    },
+    async () => {
+      transcripts += 1;
+    },
+  );
+  assert.equal(transcripts, 1);
+  assert.equal(scores, 0);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers["Access-Control-Allow-Origin"], "https://sorted.trilogybpo.com");
+  const body = JSON.parse(response.body) as { total: number };
+  assert.equal(body.total, 0);
+
+  const ignored = await handleContainerRequest("GET", PULSE_PATH, async () => [], async () => {
+    scores += 1;
+  }, async () => {
+    transcripts += 1;
+  });
+  assert.equal(ignored.status, 200);
+  assert.equal(transcripts, 1);
+  assert.equal(scores, 0);
 });
 
 test("the pulse path answers a browser preflight and hides storage errors", async () => {

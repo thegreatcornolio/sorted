@@ -12,6 +12,8 @@ The same container serves `GET /api/pulse`. sorted.trilogybpo.com can call it wi
 
 `POST /api/clear-results` is the Clear results button. It deletes `results/*.json`, writes an empty `SentimentPulse` record, and leaves the moved transcript files where they are. The response is that empty pulse. The next poll does not refill the table from the deleted JSON.
 
+`POST /api/clear-transcripts` is the Clear transcripts button. It deletes every blob in `processedtranscripts`, including the moved transcript files, `results/*.json`, and `results/*.error.json`, then writes an empty `SentimentPulse` record. It does not delete blobs in `incomingtranscripts`, and it does not delete the container. The live page asks for confirmation before it calls this route.
+
 The storage connection is the environment variable `SORTED_STORAGE_CONNECTION_STRING`. Do not commit it. The image does not contain it. The process reads that variable only, and it listens on port 8080.
 
 The image build uses the repo root as its context and `functions/Dockerfile`, so it compiles this package with `tsc` and does not run the site build. From the repo root:

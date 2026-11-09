@@ -8,6 +8,11 @@ export const SENTIMENT_PULSE_PATH = "/api/pulse";
 
 export const CLEAR_RESULTS_PATH = "/api/clear-results";
 
+export const CLEAR_TRANSCRIPTS_PATH = "/api/clear-transcripts";
+
+/** Deleting a full processed container can take longer than one pulse read. */
+export const CLEAR_TRANSCRIPTS_TIMEOUT_MS = 120_000;
+
 /** Stop waiting on GET /api/pulse after a few seconds so the page can offer a retry. */
 export const PULSE_FETCH_TIMEOUT_MS = 4_000;
 
@@ -54,6 +59,14 @@ export function sentimentPulseUrl(baseUrl: string): string | null {
 }
 
 export function clearResultsUrl(pulseUrl: string): string | null {
+  return pulseActionUrl(pulseUrl, CLEAR_RESULTS_PATH);
+}
+
+export function clearTranscriptsUrl(pulseUrl: string): string | null {
+  return pulseActionUrl(pulseUrl, CLEAR_TRANSCRIPTS_PATH);
+}
+
+function pulseActionUrl(pulseUrl: string, path: string): string | null {
   let url: URL;
   try {
     url = new URL(pulseUrl);
@@ -61,7 +74,7 @@ export function clearResultsUrl(pulseUrl: string): string | null {
     return null;
   }
   if (url.pathname !== SENTIMENT_PULSE_PATH) return null;
-  url.pathname = CLEAR_RESULTS_PATH;
+  url.pathname = path;
   url.search = "";
   url.hash = "";
   return url.toString();
@@ -114,6 +127,23 @@ export async function clearPulseResults(
   fetchImpl: typeof fetch = fetch,
   signal?: AbortSignal,
 ): Promise<PulseAggregate> {
+  return postPulseAction(CLEAR_RESULTS_PATH, timeoutMs, fetchImpl, signal);
+}
+
+export async function clearStoredTranscripts(
+  timeoutMs: number,
+  fetchImpl: typeof fetch = fetch,
+  signal?: AbortSignal,
+): Promise<PulseAggregate> {
+  return postPulseAction(CLEAR_TRANSCRIPTS_PATH, timeoutMs, fetchImpl, signal);
+}
+
+async function postPulseAction(
+  path: string,
+  timeoutMs: number,
+  fetchImpl: typeof fetch,
+  signal?: AbortSignal,
+): Promise<PulseAggregate> {
   if (signal?.aborted) throw abortError();
   const controller = new AbortController();
   const onAbort = () => controller.abort();
@@ -126,16 +156,16 @@ export async function clearPulseResults(
     }, timeoutMs);
   });
   try {
-    return await Promise.race([postClear(fetchImpl, controller.signal), timeout]);
+    return await Promise.race([postClear(path, fetchImpl, controller.signal), timeout]);
   } finally {
     if (timer) clearTimeout(timer);
     signal?.removeEventListener("abort", onAbort);
   }
 }
 
-async function postClear(fetchImpl: typeof fetch, signal: AbortSignal): Promise<PulseAggregate> {
+async function postClear(path: string, fetchImpl: typeof fetch, signal: AbortSignal): Promise<PulseAggregate> {
   const pulseUrl = await loadSentimentPulseUrl(fetchImpl, signal);
-  const url = pulseUrl ? clearResultsUrl(pulseUrl) : null;
+  const url = pulseUrl ? pulseActionUrl(pulseUrl, path) : null;
   if (!url) throw new Error("config");
   const response = await fetchImpl(url, { method: "POST", cache: "no-store", signal });
   if (!response.ok) throw new Error(String(response.status));
