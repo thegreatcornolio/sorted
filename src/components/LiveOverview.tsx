@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
+  CLEAR_TRANSCRIPTS_TIMEOUT_MS,
   clearPulseResults,
+  clearStoredTranscripts,
   loadPulseAggregate,
   overviewFromPulse,
   PULSE_FETCH_TIMEOUT_MS,
@@ -31,14 +33,18 @@ export function LiveOverview() {
   const [model, setModel] = useState<LiveOverviewModel>(EMPTY);
   const [attempt, setAttempt] = useState(0);
   const [clearing, setClearing] = useState(false);
+  const [confirmTranscripts, setConfirmTranscripts] = useState(false);
+  const [deletingTranscripts, setDeletingTranscripts] = useState(false);
+  const generation = useRef(0);
   const shown = phase === "ready" ? model : EMPTY;
 
   useEffect(() => {
     let cancelled = false;
+    const generationAtStart = generation.current;
     const controller = new AbortController();
     void loadPulseAggregate(PULSE_FETCH_TIMEOUT_MS, fetch, controller.signal)
       .then((aggregate) => {
-        if (cancelled) return;
+        if (cancelled || generation.current !== generationAtStart) return;
         setModel(overviewFromPulse(aggregate));
         setPhase("ready");
       })
@@ -69,19 +75,40 @@ export function LiveOverview() {
     setAttempt((current) => current + 1);
   }
 
+  function showCleared(aggregate: Parameters<typeof overviewFromPulse>[0]) {
+    generation.current += 1;
+    setModel(overviewFromPulse(aggregate));
+    setPhase("ready");
+  }
+
   function clearResults() {
-    if (clearing) return;
+    if (clearing || deletingTranscripts) return;
     setClearing(true);
     void clearPulseResults(PULSE_FETCH_TIMEOUT_MS, fetch)
       .then((aggregate) => {
-        setModel(overviewFromPulse(aggregate));
-        setPhase("ready");
+        showCleared(aggregate);
       })
       .catch(() => {
         setPhase("error");
       })
       .finally(() => {
         setClearing(false);
+      });
+  }
+
+  function deleteTranscripts() {
+    if (clearing || deletingTranscripts) return;
+    setDeletingTranscripts(true);
+    void clearStoredTranscripts(CLEAR_TRANSCRIPTS_TIMEOUT_MS, fetch)
+      .then((aggregate) => {
+        setConfirmTranscripts(false);
+        showCleared(aggregate);
+      })
+      .catch(() => {
+        setPhase("error");
+      })
+      .finally(() => {
+        setDeletingTranscripts(false);
       });
   }
 
@@ -131,6 +158,46 @@ export function LiveOverview() {
               </div>
             ) : null}
           </div>
+          <section className="panel clear-transcripts" aria-label="Clear transcripts" data-testid="clear-transcripts">
+            <h2>Clear transcripts</h2>
+            <p>
+              Deletes every file in processedtranscripts: the moved call transcripts, the result JSON, and the error JSON. It also
+              writes an empty score record. Files still in incomingtranscripts are left in place.
+            </p>
+            {confirmTranscripts ? (
+              <div className="intro-actions">
+                <p>Delete those stored transcripts and result files? This cannot be undone.</p>
+                <button
+                  type="button"
+                  className="text-button is-danger"
+                  onClick={deleteTranscripts}
+                  disabled={deletingTranscripts || clearing}
+                  data-testid="confirm-clear-transcripts"
+                >
+                  {deletingTranscripts ? "Deleting stored transcripts" : "Delete stored transcripts"}
+                </button>
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() => setConfirmTranscripts(false)}
+                  disabled={deletingTranscripts}
+                  data-testid="cancel-clear-transcripts"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="text-button is-danger"
+                onClick={() => setConfirmTranscripts(true)}
+                disabled={deletingTranscripts || clearing}
+                data-testid="ask-clear-transcripts"
+              >
+                Clear transcripts
+              </button>
+            )}
+          </section>
           <div className="summary-grid">
             <section className="panel summary-card" aria-label="NPS">
               <ScoreDial label="NPS" value={shown.nps} min={-100} max={100} digits={0} signed />

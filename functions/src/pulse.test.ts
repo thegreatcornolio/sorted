@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { deleteEveryBlob } from "./azure";
 import { aggregatePulse, isResultBlob, pulseHttp, SITE_ORIGIN } from "./pulse";
+import type { TranscriptStore } from "./store";
 
 test("an empty processed container is an empty pulse", () => {
   const pulse = aggregatePulse([]);
@@ -111,6 +113,26 @@ test("average csat is the mean of scored calls", () => {
   assert.equal(pulse.csat, 2.5);
   assert.equal(pulse.total, 3);
   assert.equal("nps" in pulse, false);
+});
+
+test("clearing transcripts removes moved files, result JSON, and error JSON", async () => {
+  const removed: string[] = [];
+  const store: TranscriptStore = {
+    async list() {
+      return [{ name: "life.json" }, { name: "results/life.json.json" }, { name: "results/life.json.error.json" }];
+    },
+    async read() {
+      throw new Error("unused");
+    },
+    async write() {
+      throw new Error("unused");
+    },
+    async remove(name) {
+      removed.push(name);
+    },
+  };
+  await deleteEveryBlob(store);
+  assert.deepEqual(removed.sort(), ["life.json", "results/life.json.error.json", "results/life.json.json"]);
 });
 
 test("result names are the JSON files under results, not the error files", () => {

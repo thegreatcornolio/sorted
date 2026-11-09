@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import {
   loadPulseAggregate,
   clearResultsUrl,
+  clearTranscriptsUrl,
   overviewFromPulse,
   PULSE_FETCH_TIMEOUT_MS,
   readPulseAggregate,
@@ -106,6 +107,10 @@ expect(
   clearResultsUrl(`${PUBLISHED_PULSE_ORIGIN}/api/pulse`) === `${PUBLISHED_PULSE_ORIGIN}/api/clear-results`,
   "clear results uses the pulse host",
 );
+expect(
+  clearTranscriptsUrl(`${PUBLISHED_PULSE_ORIGIN}/api/pulse`) === `${PUBLISHED_PULSE_ORIGIN}/api/clear-transcripts`,
+  "clear transcripts uses the pulse host",
+);
 
 const home = readFileSync(new URL("../src/app/page.tsx", import.meta.url), "utf8");
 const livePage = readFileSync(new URL("../src/app/live/page.tsx", import.meta.url), "utf8");
@@ -122,6 +127,11 @@ expect(liveOverview.includes('label="CSAT"'), "the live page shows the CSAT dial
 expect(liveOverview.includes('data-testid="kpi-csat"'), "the live page shows the CSAT average");
 expect(liveOverview.includes("Clear results"), "the live page has Clear results");
 expect(liveOverview.includes("clearPulseResults"), "Clear results calls the pulse host");
+expect(liveOverview.includes("Clear transcripts"), "the live page has Clear transcripts");
+expect(liveOverview.includes('data-testid="ask-clear-transcripts"'), "Clear transcripts asks before it runs");
+expect(liveOverview.includes('data-testid="confirm-clear-transcripts"'), "Clear transcripts has a confirm button");
+expect(liveOverview.includes("clearStoredTranscripts"), "confirming Clear transcripts calls the pulse host");
+expect(liveOverview.includes("incomingtranscripts"), "Clear transcripts says the inbox is left in place");
 expect(!liveOverview.includes("is-single"), "CSAT sits beside NPS");
 expect(!/genii/i.test(liveOverview + livePage), "the live page does not mention Genii");
 expect(!/sample/i.test(liveOverview + livePage), "the live page has no sample disclaimer");
