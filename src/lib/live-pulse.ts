@@ -6,6 +6,9 @@ export const SENTIMENT_PULSE_BASE_URL_PLACEHOLDER = "SENTIMENT_PULSE_BASE_URL";
 /** Anonymous aggregate of processedtranscripts. The host comes from config; this path is fixed. */
 export const SENTIMENT_PULSE_PATH = "/api/pulse";
 
+/** Stop waiting on GET /api/pulse after a few seconds so the page can offer a retry. */
+export const PULSE_FETCH_TIMEOUT_MS = 4_000;
+
 export type PulseReason = { label: string; count: number };
 
 export type PulseAggregate = {
@@ -46,11 +49,14 @@ export function sentimentPulseUrl(baseUrl: string): string | null {
   return url.toString();
 }
 
-export async function loadSentimentPulseUrl(fetchImpl: typeof fetch = fetch): Promise<string | null> {
+export async function loadSentimentPulseUrl(
+  fetchImpl: typeof fetch = fetch,
+  signal?: AbortSignal,
+): Promise<string | null> {
   const fromEnv = process.env.NEXT_PUBLIC_SENTIMENT_PULSE_BASE_URL;
   if (typeof fromEnv === "string" && fromEnv.trim()) return sentimentPulseUrl(fromEnv);
   try {
-    const response = await fetchImpl("/sentiment-pulse-config.json", { cache: "no-store" });
+    const response = await fetchImpl("/sentiment-pulse-config.json", { cache: "no-store", signal });
     if (!response.ok) return null;
     const body: unknown = await response.json();
     const base =
@@ -59,6 +65,44 @@ export async function loadSentimentPulseUrl(fetchImpl: typeof fetch = fetch): Pr
   } catch {
     return null;
   }
+}
+
+export async function loadPulseAggregate(
+  timeoutMs: number,
+  fetchImpl: typeof fetch = fetch,
+  signal?: AbortSignal,
+): Promise<PulseAggregate> {
+  if (signal?.aborted) throw abortError();
+  const controller = new AbortController();
+  const onAbort = () => controller.abort();
+  signal?.addEventListener("abort", onAbort);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      reject(Object.assign(new Error("timeout"), { name: "TimeoutError" }));
+    }, timeoutMs);
+  });
+  try {
+    return await Promise.race([readAggregate(fetchImpl, controller.signal), timeout]);
+  } finally {
+    if (timer) clearTimeout(timer);
+    signal?.removeEventListener("abort", onAbort);
+  }
+}
+
+async function readAggregate(fetchImpl: typeof fetch, signal: AbortSignal): Promise<PulseAggregate> {
+  const url = await loadSentimentPulseUrl(fetchImpl, signal);
+  if (!url) throw new Error("config");
+  const response = await fetchImpl(url, { cache: "no-store", signal });
+  if (!response.ok) throw new Error(String(response.status));
+  const aggregate = readPulseAggregate(await response.json());
+  if (!aggregate) throw new Error("shape");
+  return aggregate;
+}
+
+function abortError(): Error {
+  return Object.assign(new Error("aborted"), { name: "AbortError" });
 }
 
 export function readPulseAggregate(value: unknown): PulseAggregate | null {

@@ -1,5 +1,5 @@
-import { LiveOverview } from "@/components/LiveOverview";
+import { Overview } from "@/components/Overview";
 
 export default function HomePage() {
-  return <LiveOverview />;
+  return <Overview />;
 }

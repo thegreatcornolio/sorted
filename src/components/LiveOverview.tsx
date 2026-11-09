@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  loadSentimentPulseUrl,
+  loadPulseAggregate,
   overviewFromPulse,
-  readPulseAggregate,
+  PULSE_FETCH_TIMEOUT_MS,
   type LiveOverview as LiveOverviewModel,
 } from "@/lib/live-pulse";
 import { ScoreDial } from "./ScoreDial";
@@ -22,80 +22,90 @@ const EMPTY = overviewFromPulse({
   movement: [],
 });
 
-type Phase = "waiting" | "loading" | "ready" | "error";
+type Phase = "waiting" | "ready" | "error";
 
 export function LiveOverview() {
   const [phase, setPhase] = useState<Phase>("waiting");
   const [model, setModel] = useState<LiveOverviewModel>(EMPTY);
+  const [attempt, setAttempt] = useState(0);
   const shown = phase === "ready" ? model : EMPTY;
 
   useEffect(() => {
     let cancelled = false;
-    const seen = { current: false };
-
-    async function tick() {
-      const url = await loadSentimentPulseUrl();
-      if (cancelled) return;
-      if (!url) {
-        if (!seen.current) setPhase("waiting");
-        return;
-      }
-      if (!seen.current) setPhase("loading");
-      try {
-        const response = await fetch(url, { cache: "no-store" });
-        if (!response.ok) throw new Error(String(response.status));
-        const aggregate = readPulseAggregate(await response.json());
-        if (!aggregate) throw new Error("shape");
+    const controller = new AbortController();
+    void loadPulseAggregate(PULSE_FETCH_TIMEOUT_MS, fetch, controller.signal)
+      .then((aggregate) => {
         if (cancelled) return;
-        seen.current = true;
         setModel(overviewFromPulse(aggregate));
         setPhase("ready");
-      } catch {
+      })
+      .catch(() => {
         if (cancelled) return;
-        if (!seen.current) setPhase("error");
-      }
-    }
+        setPhase((current) => (current === "ready" ? "ready" : "error"));
+      });
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [attempt]);
 
-    void tick();
-    const timer = window.setInterval(() => void tick(), 30_000);
+  useEffect(() => {
+    const timer = window.setInterval(() => setAttempt((current) => current + 1), 30_000);
     const onVisible = () => {
-      if (document.visibilityState === "visible") void tick();
+      if (document.visibilityState === "visible") setAttempt((current) => current + 1);
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => {
-      cancelled = true;
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, []);
 
+  function retry() {
+    setPhase("waiting");
+    setAttempt((current) => current + 1);
+  }
+
   const status =
-    phase === "loading"
-      ? "Reading scored transcripts"
-      : phase === "error"
-        ? "Sentiment Pulse could not be loaded"
-        : shown.total === 0
-          ? "Waiting"
-          : `${shown.total} ${shown.total === 1 ? "interaction" : "interactions"}`;
+    phase === "error"
+      ? "Could not load"
+      : phase === "ready" && shown.total === 0
+        ? "No scored transcripts yet"
+        : phase === "ready"
+          ? `${shown.total} ${shown.total === 1 ? "interaction" : "interactions"}`
+          : "Waiting";
 
   return (
     <>
-      <SiteHeader current="overview">
+      <SiteHeader>
         <span className="live-pill" data-testid="live-status">
-          <span className={phase === "loading" ? "dot is-on" : "dot"} aria-hidden="true" />
+          <span className={phase === "waiting" ? "dot is-on" : "dot"} aria-hidden="true" />
           {status}
         </span>
       </SiteHeader>
       <main className="desk" data-testid="live-overview">
         <div className="wrap">
           <div className="desk-intro">
-            <p className="kicker">NPS · customer interactions support</p>
+            <p className="kicker">Live scores · scored transcripts</p>
             <div className="intro-row">
               <h1>Customer interactions support</h1>
-              <Link href="/demo" className="text-button" data-testid="open-demo">
+              <Link href="/" className="text-button" data-testid="open-demo">
                 Open the demo
               </Link>
             </div>
+            {phase === "waiting" ? (
+              <p className="status-line" data-testid="pulse-waiting">
+                Waiting for scored transcripts.
+              </p>
+            ) : null}
+            {phase === "error" ? (
+              <div className="intro-actions status-line" data-testid="pulse-error">
+                <p>Scored transcripts did not load.</p>
+                <button type="button" className="text-button" onClick={retry} data-testid="retry-pulse">
+                  Retry
+                </button>
+              </div>
+            ) : null}
           </div>
           <div className="summary-grid is-single">
             <section className="panel summary-card" aria-label="NPS">
