@@ -18,6 +18,20 @@ export async function loadScores(ledger: PulseLedger): Promise<unknown[]> {
   return (await ledger.read()) ?? [];
 }
 
+export async function reconcilePulse(
+  ledger: PulseLedger,
+  hasResults: boolean,
+  loadRecords: () => Promise<unknown[]>,
+): Promise<void> {
+  if (!hasResults) {
+    const current = await ledger.read();
+    if (current == null || current.length > 0) await ledger.write([]);
+    return;
+  }
+  if ((await ledger.read()) != null) return;
+  await seedScores(ledger, await loadRecords());
+}
+
 export async function seedScores(ledger: PulseLedger, records: unknown[]): Promise<void> {
   if ((await ledger.read()) != null) return;
   const next = records.filter((item) => item && typeof item === "object");

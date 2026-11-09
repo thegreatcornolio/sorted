@@ -1,7 +1,7 @@
 import { BlobServiceClient, type ContainerClient } from "@azure/storage-blob";
 import { CONNECTION_SETTING, INCOMING_CONTAINER, PROCESSED_CONTAINER } from "./layout";
 import { isResultBlob } from "./pulse";
-import { loadScores, rememberScore, seedScores, type PulseLedger } from "./pulseLedger";
+import { loadScores, reconcilePulse, rememberScore, type PulseLedger } from "./pulseLedger";
 import { tableLedger } from "./pulseTable";
 import { scoreIncoming, scoreOne, type ScoreSummary } from "./run";
 import type { TranscriptStore } from "./store";
@@ -34,8 +34,9 @@ function pulseStore(connection: string): PulseLedger {
 }
 
 async function seedStore(store: PulseLedger, processed: TranscriptStore): Promise<void> {
-  if ((await store.read()) != null) return;
-  await seedScores(store, await listResultRecords(processed));
+  const names = await processed.list();
+  const hasResults = names.some((blob) => isResultBlob(blob.name));
+  await reconcilePulse(store, hasResults, () => listResultRecords(processed));
 }
 
 async function listResultRecords(processed: TranscriptStore): Promise<unknown[]> {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { aggregatePulse } from "./pulse";
-import { loadScores, rememberScore, seedScores, type PulseLedger } from "./pulseLedger";
+import { loadScores, reconcilePulse, rememberScore, seedScores, type PulseLedger } from "./pulseLedger";
 import { packPulse, unpackPulse } from "./pulseTable";
 import type { ScoredRecord } from "./run";
 
@@ -28,6 +28,35 @@ test("an empty store stays empty until the first seed", async () => {
   const calls = await loadScores(ledger);
   assert.equal(calls.length, 1);
   assert.equal((calls[0] as ScoredRecord).file, "kept.json");
+});
+
+test("no result json clears stored scores on the next poll", async () => {
+  const ledger = memoryLedger();
+  await rememberScore(ledger, record("old.json", "2026-11-08T12:00:00.000Z", "detractor"));
+  let loads = 0;
+  await reconcilePulse(ledger, false, async () => {
+    loads += 1;
+    return [record("should-not-load.json", "2026-11-08T13:00:00.000Z", "promoter")];
+  });
+  assert.equal(loads, 0);
+  const pulse = aggregatePulse(await loadScores(ledger));
+  assert.equal(pulse.total, 0);
+  assert.equal(pulse.promoters, 0);
+  assert.equal(pulse.detractors, 0);
+  assert.equal(pulse.evidence, null);
+  assert.deepEqual(pulse.movement, []);
+});
+
+test("result json that is still present keeps the stored pulse", async () => {
+  const ledger = memoryLedger();
+  await rememberScore(ledger, record("kept.json", "2026-11-08T12:00:00.000Z", "promoter"));
+  let loads = 0;
+  await reconcilePulse(ledger, true, async () => {
+    loads += 1;
+    return [];
+  });
+  assert.equal(loads, 0);
+  assert.equal((await loadScores(ledger)).length, 1);
 });
 
 test("the table entity round-trips a pulse larger than one property", () => {
