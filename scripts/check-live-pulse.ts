@@ -1,6 +1,9 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import {
+  loadPulseAggregate,
   overviewFromPulse,
+  PULSE_FETCH_TIMEOUT_MS,
   readPulseAggregate,
   SENTIMENT_PULSE_BASE_URL_PLACEHOLDER,
   sentimentPulseUrl,
@@ -12,11 +15,17 @@ function expect(condition: unknown, message: string) {
   if (!condition) failures.push(message);
 }
 
+const PUBLISHED_PULSE_ORIGIN = "https://sorted-pulse.thankfulflower-819372b8.westus3.azurecontainerapps.io";
 const configText = readFileSync(new URL("../public/sentiment-pulse-config.json", import.meta.url), "utf8");
 const config = JSON.parse(configText) as { baseUrl?: string };
-expect(config.baseUrl === SENTIMENT_PULSE_BASE_URL_PLACEHOLDER, "pulse config must keep the named placeholder");
-expect(sentimentPulseUrl(config.baseUrl ?? "") === null, "placeholder must not become a request");
+expect(config.baseUrl === PUBLISHED_PULSE_ORIGIN, "pulse config must use the published host");
+expect(
+  sentimentPulseUrl(config.baseUrl ?? "") === `${PUBLISHED_PULSE_ORIGIN}/api/pulse`,
+  "published host requests /api/pulse",
+);
+expect(sentimentPulseUrl(SENTIMENT_PULSE_BASE_URL_PLACEHOLDER) === null, "placeholder must not become a request");
 expect(!/accountkey|sharedaccesssignature|sorted_storage_connection_string/i.test(configText), "pulse config must not contain a storage key");
+expect(PULSE_FETCH_TIMEOUT_MS >= 2_000 && PULSE_FETCH_TIMEOUT_MS <= 5_000, "pulse fetch times out after a few seconds");
 
 expect(sentimentPulseUrl("") === null, "blank base");
 expect(sentimentPulseUrl("not a url") === null, "invalid base");
@@ -87,9 +96,99 @@ const empty = readPulseAggregate({
 });
 expect(empty != null && overviewFromPulse(empty).nps === null, "empty pulse has no nps");
 
-if (failures.length) {
-  console.error(failures.join("\n"));
-  process.exit(1);
+const home = readFileSync(new URL("../src/app/page.tsx", import.meta.url), "utf8");
+const livePage = readFileSync(new URL("../src/app/live/page.tsx", import.meta.url), "utf8");
+const overview = readFileSync(new URL("../src/components/Overview.tsx", import.meta.url), "utf8");
+const liveOverview = readFileSync(new URL("../src/components/LiveOverview.tsx", import.meta.url), "utf8");
+expect(home.includes("<Overview") && !home.includes("LiveOverview"), "the main page is the simulated queue");
+expect(livePage.includes("<LiveOverview"), "/live is the scored pulse");
+expect(!existsSync(fileURLToPath(new URL("../src/app/demo/page.tsx", import.meta.url))), "the demo is not a separate route");
+expect(overview.includes('href="/live"') && overview.includes("Open live scores"), "the demo links to live scores");
+expect(liveOverview.includes("loadPulseAggregate"), "the live page loads through the timed helper");
+expect(liveOverview.includes('data-testid="pulse-waiting"'), "the live page has a waiting state");
+expect(liveOverview.includes('data-testid="retry-pulse"'), "the live page has a visible retry");
+expect(!/genii/i.test(liveOverview + livePage), "the live page does not mention Genii");
+expect(!/sample/i.test(liveOverview + livePage), "the live page has no sample disclaimer");
+expect(!/pulse-disclaimer|pulse-sample/.test(liveOverview + livePage), "the live page does not use the sample disclaimer");
+
+function abortError(): Error {
+  return Object.assign(new Error("aborted"), { name: "AbortError" });
 }
 
-console.log("live pulse ok");
+function hangingFetch(onAbort: () => void): typeof fetch {
+  return ((_input: string, init?: RequestInit) =>
+    new Promise<Response>((_resolve, reject) => {
+      if (init?.signal?.aborted) {
+        onAbort();
+        reject(abortError());
+        return;
+      }
+      init?.signal?.addEventListener("abort", () => {
+        onAbort();
+        reject(abortError());
+      });
+    })) as typeof fetch;
+}
+
+const pulseBody = JSON.stringify(sample);
+
+void (async () => {
+  const started = Date.now();
+  let aborted = false;
+  await loadPulseAggregate(
+    40,
+    (async (input: string, init?: RequestInit) => {
+      if (String(input).includes("sentiment-pulse-config.json")) {
+        return new Response(JSON.stringify({ baseUrl: "https://func.example.net" }), { status: 200 });
+      }
+      return hangingFetch(() => {
+        aborted = true;
+      })(input, init);
+    }) as typeof fetch,
+  ).then(
+    () => failures.push("a hanging pulse must reject"),
+    () => {},
+  );
+  expect(aborted, "a hanging pulse is aborted");
+  expect(Date.now() - started < 1_000, "a hanging pulse does not block past its deadline");
+
+  let configAborted = false;
+  await loadPulseAggregate(40, hangingFetch(() => {
+    configAborted = true;
+  })).then(
+    () => failures.push("a hanging config read must reject"),
+    () => {},
+  );
+  expect(configAborted, "a hanging config read is aborted");
+
+  const controller = new AbortController();
+  const pending = loadPulseAggregate(5_000, hangingFetch(() => {}), controller.signal);
+  controller.abort();
+  const early = Date.now();
+  await pending.then(
+    () => failures.push("an aborted pulse must reject"),
+    () => {},
+  );
+  expect(Date.now() - early < 500, "aborting the pulse does not wait for the deadline");
+
+  const loaded = await loadPulseAggregate(
+    1_000,
+    (async (input: string) => {
+      if (String(input).includes("sentiment-pulse-config.json")) {
+        return new Response(JSON.stringify({ baseUrl: "https://func.example.net" }), { status: 200 });
+      }
+      return new Response(pulseBody, { status: 200 });
+    }) as typeof fetch,
+  );
+  expect(loaded.total === 3 && loaded.promoters === 1, "a fast pulse returns the aggregate");
+
+  if (failures.length) {
+    console.error(failures.join("\n"));
+    process.exit(1);
+  }
+
+  console.log("live pulse ok");
+})().catch((error: unknown) => {
+  console.error(error);
+  process.exit(1);
+});

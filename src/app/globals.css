@@ -220,7 +220,10 @@ h1, h2, h3, .brand, .card-title {
 .desk-intro h1 { margin: 0 0 6px; font-size: clamp(1.6rem, 2vw, 2rem); }
 .intro-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .intro-row h1 { margin: 0; }
+.intro-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.desk-intro .status-line { margin-top: 12px; }
 .desk-intro p { margin: 0; color: var(--muted); max-width: 70ch; }
+.desk-intro .text-button { color: var(--navy); }
 
 .status-strip {
   display: flex;

@@ -36,7 +36,7 @@ export function Overview() {
 
   return (
     <>
-      <SiteHeader>
+      <SiteHeader current="overview">
         <span className="live-pill">
           <span className={ingesting ? "dot is-on" : "dot"} aria-hidden="true" />
           {count === 0 ? "Waiting for the first interaction" : ingesting ? `Ingesting ${count} of ${rows.length}` : `Queue ingested · ${rows.length}`}
@@ -46,7 +46,12 @@ export function Overview() {
         <div className="wrap">
           <div className="desk-intro">
             <p className="kicker">NPS and CSAT · customer interactions support</p>
-            <h1>Customer interactions support</h1>
+            <div className="intro-row">
+              <h1>Customer interactions support</h1>
+              <Link href="/live" className="text-button" data-testid="open-live">
+                Open live scores
+              </Link>
+            </div>
           </div>
           <div className="summary-grid">
             <section className="panel summary-card" aria-label="NPS">
