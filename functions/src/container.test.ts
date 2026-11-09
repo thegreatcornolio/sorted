@@ -95,9 +95,11 @@ test("the pulse path answers a browser preflight and hides storage errors", asyn
   assert.equal(await handleContainerRequest("GET", "/upload", async () => []).then((result) => result.status), 404);
 });
 
-test("a poll error never repeats a connection string", () => {
+test("a poll error never repeats a connection string or an API key", () => {
   assert.equal(pollError(new Error("AccountKey=secret")), "Scoring poll failed.");
+  assert.equal(pollError(new Error("api-key: secret")), "Scoring poll failed.");
   assert.equal(pollError(new Error("SORTED_STORAGE_CONNECTION_STRING is not set.")), "SORTED_STORAGE_CONNECTION_STRING is not set.");
+  assert.equal(pollError(new Error("AZURE_OPENAI_API_KEY is not set.")), "AZURE_OPENAI_API_KEY is not set.");
 });
 
 test("the image runs the poller and does not bake a connection string", () => {
@@ -111,6 +113,7 @@ test("the image runs the poller and does not bake a connection string", () => {
   assert.match(dockerfile, /CMD \["node", "dist\/container\.js"\]/);
   assert.doesNotMatch(dockerfile, /\bfunc\b/);
   assert.doesNotMatch(dockerfile, /SORTED_STORAGE_CONNECTION_STRING\s*=/);
+  assert.doesNotMatch(dockerfile, /AZURE_OPENAI_(ENDPOINT|API_KEY|DEPLOYMENT|API_VERSION)\s*=/);
   assert.doesNotMatch(dockerfile, /AccountKey|SharedAccessSignature|DefaultEndpointsProtocol/);
   assert.match(ignore, /local\.settings\.json/);
   assert.doesNotMatch(source, /loadLocalSettings/);

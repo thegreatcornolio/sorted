@@ -1,4 +1,5 @@
 import { scoreIncomingFromEnv } from "./azure";
+import { safeErrorMessage } from "./openai";
 import { loadLocalSettings } from "./settings";
 
 loadLocalSettings();
@@ -8,7 +9,6 @@ scoreIncomingFromEnv()
     console.log(JSON.stringify(summary, null, 2));
   })
   .catch((error: unknown) => {
-    const message = error instanceof Error && error.message.trim() ? error.message.trim() : "Scoring failed.";
-    console.error(message);
+    console.error(safeErrorMessage(error));
     process.exitCode = 1;
   });

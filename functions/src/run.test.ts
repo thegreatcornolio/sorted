@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import type { CallJudgment } from "./openai";
 import { scoreIncoming, scoreOne, transcriptName } from "./run";
 import type { TranscriptStore } from "./store";
 
@@ -35,6 +36,22 @@ class MemoryStore implements TranscriptStore {
 
 const now = () => new Date("2026-11-07T09:40:00.000Z");
 
+function judgment(evidence: string, band: CallJudgment["nps_category"] = "detractor"): CallJudgment {
+  const predicted = band === "promoter" ? 9 : band === "passive" ? 8 : 2;
+  const sentiment = band === "promoter" ? "positive" : band === "passive" ? "mixed" : "negative";
+  return {
+    predicted_nps: predicted,
+    nps_category: band,
+    sentiment_start: sentiment,
+    sentiment_end: sentiment,
+    resolved: band === "promoter",
+    csat: band === "promoter" ? 4 : band === "passive" ? 3 : 1,
+    primary_reason: "The caller said what happened at the end.",
+    evidence,
+    summary: "The score follows the ending of the call.",
+  };
+}
+
 test("scores every file in the incoming container and moves successes to processed", async () => {
   const incoming = new MemoryStore({
     "folder/": "",
@@ -47,7 +64,7 @@ test("scores every file in the incoming container and moves successes to process
     "results/old.json": "{}",
   });
 
-  const summary = await scoreIncoming(incoming, processed, now);
+  const summary = await scoreIncoming(incoming, processed, now, undefined, async () => judgment("The refund never arrived."));
 
   assert.deepEqual(summary.scored, ["harper.txt"]);
   assert.equal(incoming.blobs.has("harper.txt"), false);
@@ -65,14 +82,16 @@ test("scores every file in the incoming container and moves successes to process
     reason: string | null;
     evidence: string;
     company: string;
+    predictedNps: number;
     scoredAt: string;
   };
   assert.equal(result.file, "harper.txt");
   assert.equal(result.sentiment, "negative");
   assert.deepEqual(result.mix, { positive: 0, neutral: 0, negative: 100 });
   assert.equal(result.nps, null);
-  assert.equal(result.npsBand, null);
-  assert.equal(result.reason, null);
+  assert.equal(result.predictedNps, 2);
+  assert.equal(result.npsBand, "detractor");
+  assert.equal(result.reason, "The caller said what happened at the end.");
   assert.equal(result.evidence, "The refund never arrived.");
   assert.equal(result.company, "Harper Stores");
   assert.equal(result.scoredAt, "2026-11-07T09:40:00.000Z");
@@ -109,7 +128,7 @@ test("a failed move leaves the file in incoming and writes the error beside the 
     remove: (name) => processed.remove(name),
   };
 
-  const summary = await scoreIncoming(incoming, blocked, now);
+  const summary = await scoreIncoming(incoming, blocked, now, undefined, async () => judgment("The refund never arrived."));
 
   assert.deepEqual(summary.scored, []);
   assert.deepEqual(summary.failed, [{ file: "call.txt", error: "copy failed" }]);
@@ -118,23 +137,25 @@ test("a failed move leaves the file in incoming and writes the error beside the 
   const result = JSON.parse(processed.blobs.get("results/call.txt.json")?.body.toString() ?? "") as {
     nps: number;
     npsBand: string;
+    predictedNps: number;
     reason: string;
   };
   assert.equal(result.nps, 2);
+  assert.equal(result.predictedNps, 2);
   assert.equal(result.npsBand, "detractor");
-  assert.equal(result.reason, "A refund that is missing or short");
+  assert.equal(result.reason, "The caller said what happened at the end.");
   const error = JSON.parse(processed.blobs.get("results/call.txt.error.json")?.body.toString() ?? "") as { error: string };
   assert.equal(error.error, "copy failed");
 });
 
 test("a later success clears the error beside the result", async () => {
   const incoming = new MemoryStore({
-    "call.txt": "Customer: Really pleased.",
+    "call.txt": "Customer: Really pleased with the call.",
   });
   const processed = new MemoryStore({
     "results/call.txt.error.json": JSON.stringify({ file: "call.txt", error: "old", failedAt: "2020-01-01T00:00:00.000Z" }),
   });
-  const summary = await scoreIncoming(incoming, processed, now);
+  const summary = await scoreIncoming(incoming, processed, now, undefined, async () => judgment("Really pleased with the call.", "promoter"));
   assert.deepEqual(summary.scored, ["call.txt"]);
   assert.equal(incoming.blobs.has("call.txt"), false);
   assert.equal(processed.blobs.has("results/call.txt.error.json"), false);
@@ -154,11 +175,19 @@ test("a blob that cannot be scored stays in incoming and gets an error file", as
 });
 
 test("a store failure leaves the transcript in incoming", async () => {
-  const incoming = new MemoryStore({ "call.txt": "Customer: Really pleased." });
+  const incoming = new MemoryStore({ "call.txt": "Customer: Really pleased with the call." });
   const processed = new MemoryStore();
-  const outcome = await scoreOne(incoming, processed, "call.txt", Buffer.from("Customer: Really pleased."), now, async () => {
-    throw new Error("Sentiment pulse store is full.");
-  });
+  const outcome = await scoreOne(
+    incoming,
+    processed,
+    "call.txt",
+    Buffer.from("Customer: Really pleased with the call."),
+    now,
+    async () => {
+      throw new Error("Sentiment pulse store is full.");
+    },
+    async () => judgment("Really pleased with the call.", "promoter"),
+  );
   assert.equal(outcome.status, "failed");
   assert.equal(incoming.blobs.has("call.txt"), true);
   assert.equal(processed.blobs.has("call.txt"), false);

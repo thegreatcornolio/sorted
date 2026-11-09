@@ -96,7 +96,7 @@ test("the pulse request does not share the poll lock or list blobs", () => {
   const azure = readFileSync(resolve(__dirname, "azure.ts"), "utf8");
   const reader = azure.slice(azure.indexOf("export async function readStoredScores"), azure.indexOf("function pulseStore"));
   assert.match(reader, /readPulseRecord/);
-  assert.doesNotMatch(reader, /seedStore|scoreIncoming|listResultRecords|pulseStore/);
+  assert.doesNotMatch(reader, /seedStore|scoreIncoming|listResultRecords|pulseStore|judgeTranscript|AZURE_OPENAI/);
 });
 
 test("the table entity round-trips a pulse larger than one property", () => {
@@ -138,6 +138,11 @@ function record(file: string, scoredAt: string, npsBand: ScoredRecord["npsBand"]
     reason: npsBand === "detractor" ? "They wanted to cancel" : null,
     evidence: npsBand === "detractor" ? "Please cancel the cover." : "Thank you.",
     company: null,
+    predictedNps: npsBand === "promoter" ? 9 : npsBand === "passive" ? 8 : 3,
+    sentimentStart: sentiment,
+    sentimentEnd: sentiment,
+    resolved: npsBand === "promoter",
+    summary: "Stored score.",
     scoredAt,
   };
 }
