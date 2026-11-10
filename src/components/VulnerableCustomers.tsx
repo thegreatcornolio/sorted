@@ -22,6 +22,7 @@ const BLANK_PULSE: PulseAggregate = {
   reasons: [],
   evidence: null,
   movement: [],
+  calls: [],
   vulnerable: [],
 };
 

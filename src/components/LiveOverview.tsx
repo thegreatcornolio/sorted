@@ -24,6 +24,7 @@ const EMPTY = overviewFromPulse({
   reasons: [],
   evidence: null,
   movement: [],
+  calls: [],
   vulnerable: [],
 });
 
@@ -187,7 +188,14 @@ export function LiveOverview() {
               </p>
             </section>
           </div>
-          <SentimentPulseCard pulse={shown.pulse} />
+          <SentimentPulseCard
+            pulse={shown.pulse}
+            evidenceHref={
+              shown.evidenceCall
+                ? `/live/interactions/?call=${encodeURIComponent(shown.evidenceCall.file)}`
+                : undefined
+            }
+          />
           <section className="panel reason-panel" aria-label="Top reasons for bad NPS">
             <div className="panel-head">
               <h2>Top 5 reasons for bad NPS</h2>
@@ -199,12 +207,26 @@ export function LiveOverview() {
               <ol className="reason-list">
                 {shown.reasons.map((item) => (
                   <li key={item.label}>
-                    <div className="reason-row" data-testid="top-reason" data-reason={item.label}>
-                      <strong>{item.label}</strong>
-                      <span>
-                        {item.count} {item.count === 1 ? "detractor" : "detractors"}
-                      </span>
-                    </div>
+                    {item.calls.length > 0 ? (
+                      <Link
+                        href={{ pathname: "/live/interactions", query: { reason: item.label } }}
+                        data-testid="top-reason"
+                        data-reason={item.label}
+                      >
+                        <strong>{item.label}</strong>
+                        <span>
+                          {item.count} {item.count === 1 ? "detractor" : "detractors"}
+                          <span aria-hidden="true"> →</span>
+                        </span>
+                      </Link>
+                    ) : (
+                      <div className="reason-row" data-testid="top-reason" data-reason={item.label}>
+                        <strong>{item.label}</strong>
+                        <span>
+                          {item.count} {item.count === 1 ? "detractor" : "detractors"}
+                        </span>
+                      </div>
+                    )}
                   </li>
                 ))}
               </ol>

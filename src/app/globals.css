@@ -776,6 +776,13 @@ mark { background: #f6efb6; padding: 0 2px; }
   color: var(--ink);
   font-size: 0.92rem;
 }
+a.pulse-quote {
+  display: block;
+  text-decoration: none;
+  border-radius: 8px;
+}
+a.pulse-quote:hover,
+a.pulse-quote:focus-visible { background: #f3f7f4; }
 .pulse-quote-note { margin: 8px 0 0; }
 
 .pulse-split {

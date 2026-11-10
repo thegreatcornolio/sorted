@@ -15,6 +15,7 @@ test("an empty processed container is an empty pulse", () => {
     reasons: [],
     evidence: null,
     movement: [],
+    calls: [],
     vulnerable: [],
   });
   assert.equal("nps" in pulse, false);
@@ -134,7 +135,17 @@ test("call results aggregate the pulse without a survey score", () => {
   assert.equal(pulse.movement[0]?.negative, 0);
   assert.equal(pulse.movement[2]?.positive, 33);
   assert.equal(pulse.movement[2]?.negative, 67);
+  assert.deepEqual(
+    pulse.calls.map((item) => item.file),
+    ["later.json", "again.json"],
+  );
+  assert.equal(pulse.calls[0]?.reason, "They wanted to cancel");
+  assert.equal(pulse.calls[0]?.quote, "I want to cancel.");
+  assert.equal(pulse.calls[0]?.npsBand, "detractor");
+  assert.equal(pulse.calls[0]?.csat, null);
+  assert.equal(pulse.calls[1]?.quote, "Please cancel the cover.");
   assert.equal(JSON.stringify(pulse).includes("\"nps\""), false);
+  assert.equal(pulse.calls.some((item) => item.file === "first.json"), false);
 });
 
 test("a real score still counts its band and is not returned as a survey number", () => {
@@ -183,6 +194,16 @@ test("average csat is the mean of scored calls", () => {
   assert.equal(pulse.csat, 2.5);
   assert.equal(pulse.total, 3);
   assert.equal("nps" in pulse, false);
+  assert.deepEqual(pulse.calls, [
+    {
+      file: "low.json",
+      scoredAt: "2026-11-08T11:00:00.000Z",
+      npsBand: "detractor",
+      csat: 1,
+      reason: "The problem was not resolved",
+      quote: "This is unresolved.",
+    },
+  ]);
 });
 
 test("clearing transcripts removes moved files, result JSON, and error JSON", async () => {
