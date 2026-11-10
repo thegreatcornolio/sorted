@@ -18,6 +18,16 @@ export const PULSE_FETCH_TIMEOUT_MS = 4_000;
 
 export type PulseReason = { label: string; count: number };
 
+/** A detractor the live page can open. Absent on a pulse that predates this field. */
+export type PulseCall = {
+  file: string;
+  scoredAt: string;
+  npsBand: "detractor";
+  csat: number | null;
+  reason: string | null;
+  quote: string | null;
+};
+
 export type PulseAggregate = {
   total: number;
   mix: { positive: number; neutral: number; negative: number };
@@ -27,6 +37,7 @@ export type PulseAggregate = {
   reasons: PulseReason[];
   evidence: { quote: string; file: string } | null;
   movement: { file: string; scoredAt: string; positive: number; negative: number }[];
+  calls: PulseCall[];
 };
 
 export type LiveOverview = {
@@ -36,7 +47,8 @@ export type LiveOverview = {
   promoters: number;
   passives: number;
   detractors: number;
-  reasons: PulseReason[];
+  reasons: (PulseReason & { calls: PulseCall[] })[];
+  evidenceCall: PulseCall | null;
   pulse: PulseView;
 };
 
@@ -198,6 +210,7 @@ export function readPulseAggregate(value: unknown): PulseAggregate | null {
   const reasons = readReasons(record.reasons);
   const evidence = readEvidence(record.evidence);
   const movement = readMovement(record.movement);
+  const calls = readCalls(record.calls);
   if (
     total == null ||
     promoters == null ||
@@ -206,11 +219,12 @@ export function readPulseAggregate(value: unknown): PulseAggregate | null {
     !reasons ||
     evidence === undefined ||
     !movement ||
+    !calls ||
     promoters + detractors > total
   ) {
     return null;
   }
-  return { total, mix, promoters, detractors, csat: readCsat(record.csat), reasons, evidence, movement };
+  return { total, mix, promoters, detractors, csat: readCsat(record.csat), reasons, evidence, movement, calls };
 }
 
 export function overviewFromPulse(pulse: PulseAggregate): LiveOverview {
@@ -224,7 +238,11 @@ export function overviewFromPulse(pulse: PulseAggregate): LiveOverview {
     promoters: pulse.promoters,
     passives,
     detractors: pulse.detractors,
-    reasons: ranked.slice(0, 5),
+    reasons: ranked.slice(0, 5).map((reason) => ({
+      ...reason,
+      calls: pulse.calls.filter((call) => call.reason === reason.label),
+    })),
+    evidenceCall: pulse.evidence ? (pulse.calls.find((call) => call.file === pulse.evidence?.file) ?? null) : null,
     pulse: {
       total: pulse.total,
       mix: pulse.mix,
@@ -257,6 +275,15 @@ export type LiveInteractionRecord = {
   negative: number;
   quote: string | null;
 };
+
+/** Newest detractor with this reason first. */
+export function callsForReason(pulse: PulseAggregate, reason: string): PulseCall[] {
+  return pulse.calls.filter((call) => call.reason === reason).reverse();
+}
+
+export function callByFile(pulse: PulseAggregate, file: string): PulseCall | null {
+  return pulse.calls.find((call) => call.file === file) ?? null;
+}
 
 /** Newest scored file first. Uses only the pulse records the live page already loaded. */
 export function interactionsFromPulse(pulse: PulseAggregate): LiveInteractionRecord[] {
@@ -304,6 +331,33 @@ function readMix(value: unknown): PulseAggregate["mix"] | null {
 
 function share(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 100 ? value : null;
+}
+
+function readCalls(value: unknown): PulseCall[] | null {
+  if (value == null) return [];
+  if (!Array.isArray(value)) return null;
+  const calls: PulseCall[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") return null;
+    const record = item as Record<string, unknown>;
+    const file = typeof record.file === "string" ? record.file.trim() : "";
+    if (!file || record.npsBand !== "detractor") return null;
+    const csat = record.csat == null ? null : count(record.csat);
+    if (record.csat != null && (csat == null || csat < 1 || csat > 5)) return null;
+    calls.push({
+      file,
+      scoredAt: typeof record.scoredAt === "string" ? record.scoredAt : "",
+      npsBand: "detractor",
+      csat,
+      reason: textOrNull(record.reason),
+      quote: textOrNull(record.quote),
+    });
+  }
+  return calls;
+}
+
+function textOrNull(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
 function readReasons(value: unknown): PulseReason[] | null {

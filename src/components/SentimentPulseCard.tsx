@@ -1,10 +1,11 @@
+import Link from "next/link";
 import type { PulsePoint, PulseView } from "@/lib/pulse";
 
 const TOPIC_TONE = ["is-delay", "is-fit"] as const;
 const DRIVER_TONE = ["is-resolution", "is-communication", "is-questions"] as const;
 const CHART = { width: 640, height: 220, min: 0, max: 100, padL: 32, padR: 36, padT: 14, padB: 28 };
 
-export function SentimentPulseCard({ pulse }: { pulse: PulseView }) {
+export function SentimentPulseCard({ pulse, evidenceHref }: { pulse: PulseView; evidenceHref?: string }) {
   const note = pulse.total ? movementNote(pulse) : "";
   return (
     <section className="pulse-board" aria-label="Sentiment Pulse" data-testid="sentiment-pulse">
@@ -86,9 +87,15 @@ export function SentimentPulseCard({ pulse }: { pulse: PulseView }) {
           <p className="pulse-evidence">From conversation to business signal.</p>
           {pulse.evidence ? (
             <>
-              <p className="pulse-quote" data-testid="pulse-quote">
-                “{pulse.evidence.quote}”
-              </p>
+              {evidenceHref ? (
+                <Link href={evidenceHref} className="pulse-quote" data-testid="pulse-quote">
+                  “{pulse.evidence.quote}”
+                </Link>
+              ) : (
+                <p className="pulse-quote" data-testid="pulse-quote">
+                  “{pulse.evidence.quote}”
+                </p>
+              )}
               {pulse.evidence.company ? <p className="meta pulse-quote-note">{pulse.evidence.company}</p> : null}
             </>
           ) : (
