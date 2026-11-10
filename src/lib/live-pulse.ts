@@ -18,6 +18,15 @@ export const PULSE_FETCH_TIMEOUT_MS = 4_000;
 
 export type PulseReason = { label: string; count: number };
 
+export type VulnerableCustomer = {
+  person: string;
+  file: string;
+  vulnerable: true;
+  vulnerability_reason: string;
+  next_step: string;
+  scoredAt: string;
+};
+
 /** A detractor the live page can open. Absent on a pulse that predates this field. */
 export type PulseCall = {
   file: string;
@@ -38,6 +47,7 @@ export type PulseAggregate = {
   evidence: { quote: string; file: string } | null;
   movement: { file: string; scoredAt: string; positive: number; negative: number }[];
   calls: PulseCall[];
+  vulnerable: VulnerableCustomer[];
 };
 
 export type LiveOverview = {
@@ -211,6 +221,7 @@ export function readPulseAggregate(value: unknown): PulseAggregate | null {
   const evidence = readEvidence(record.evidence);
   const movement = readMovement(record.movement);
   const calls = readCalls(record.calls);
+  const vulnerable = readVulnerable(record.vulnerable);
   if (
     total == null ||
     promoters == null ||
@@ -224,7 +235,7 @@ export function readPulseAggregate(value: unknown): PulseAggregate | null {
   ) {
     return null;
   }
-  return { total, mix, promoters, detractors, csat: readCsat(record.csat), reasons, evidence, movement, calls };
+  return { total, mix, promoters, detractors, csat: readCsat(record.csat), reasons, evidence, movement, calls, vulnerable };
 }
 
 export function overviewFromPulse(pulse: PulseAggregate): LiveOverview {
@@ -382,6 +393,30 @@ function readEvidence(value: unknown): PulseAggregate["evidence"] | undefined {
   const file = typeof record.file === "string" ? record.file.trim() : "";
   if (!quote || !file) return undefined;
   return { quote, file };
+}
+
+function readVulnerable(value: unknown): VulnerableCustomer[] {
+  if (!Array.isArray(value)) return [];
+  const rows: VulnerableCustomer[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const record = item as Record<string, unknown>;
+    if (record.vulnerable !== true) continue;
+    const person = typeof record.person === "string" ? record.person.trim() : "";
+    const file = typeof record.file === "string" ? record.file.trim() : "";
+    const reason = typeof record.vulnerability_reason === "string" ? record.vulnerability_reason.trim() : "";
+    const next = typeof record.next_step === "string" ? record.next_step.trim() : "";
+    if (!person || !file || !reason || !next) continue;
+    rows.push({
+      person,
+      file,
+      vulnerable: true,
+      vulnerability_reason: reason,
+      next_step: next,
+      scoredAt: typeof record.scoredAt === "string" ? record.scoredAt : "",
+    });
+  }
+  return rows;
 }
 
 function readMovement(value: unknown): PulseAggregate["movement"] | null {

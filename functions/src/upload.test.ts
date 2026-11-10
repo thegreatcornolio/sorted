@@ -45,6 +45,9 @@ function refundJudgment(): CallJudgment {
     primary_reason: "The refund never arrived.",
     evidence: "The refund never arrived.",
     summary: "The refund was still missing at the end of the call.",
+    vulnerable: false,
+    vulnerability_reason: "",
+    next_step: "",
   };
 }
 
@@ -59,6 +62,9 @@ function pleasedJudgment(): CallJudgment {
     primary_reason: "They were pleased with the call.",
     evidence: "Really pleased with the call.",
     summary: "The caller was pleased at the end.",
+    vulnerable: false,
+    vulnerability_reason: "",
+    next_step: "",
   };
 }
 const page = readFileSync(resolve(__dirname, "../upload/index.html"), "utf8");

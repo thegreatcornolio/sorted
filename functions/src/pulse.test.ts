@@ -16,8 +16,78 @@ test("an empty processed container is an empty pulse", () => {
     evidence: null,
     movement: [],
     calls: [],
+    vulnerable: [],
   });
   assert.equal("nps" in pulse, false);
+});
+
+test("only a caller who cannot pay is listed, not a price complaint", () => {
+  const pulse = aggregatePulse([
+    {
+      ...call({
+        file: "price.json",
+        sentiment: "negative",
+        nps: null,
+        npsBand: "detractor",
+        reason: "They disliked the price",
+        evidence: "That price is far too high.",
+        scoredAt: "2026-11-08T12:00:00.000Z",
+      }),
+      company: "Price Clinic",
+      vulnerable: false,
+      vulnerability_reason: "They disliked the price.",
+      next_step: "Apologise for the price.",
+    },
+    {
+      ...call({
+        file: "folder/late.json",
+        sentiment: "mixed",
+        nps: null,
+        npsBand: "passive",
+        reason: "They cannot pay this month",
+        evidence: "I am two months late and I cannot pay.",
+        scoredAt: "2026-11-08T13:00:00.000Z",
+      }),
+      vulnerable: true,
+      vulnerability_reason: "They are two months late and cannot pay this month.",
+      next_step: "Offer a payment plan and a hardship callback.",
+    },
+    {
+      ...call({
+        file: "older.txt",
+        sentiment: "negative",
+        nps: null,
+        npsBand: "detractor",
+        reason: "Their hours were cut",
+        evidence: "My hours were cut and I cannot pay.",
+        scoredAt: "2026-11-08T11:00:00.000Z",
+      }),
+      company: "North Clinic",
+      vulnerable: true,
+      vulnerability_reason: "Their hours were cut, so they cannot pay.",
+      next_step: "Arrange a short payment hold.",
+    },
+    call({
+      file: "legacy.txt",
+      sentiment: "positive",
+      nps: null,
+      npsBand: "promoter",
+      reason: "They were pleased",
+      evidence: "Thank you.",
+      scoredAt: "2026-11-08T10:00:00.000Z",
+    }),
+  ]);
+  assert.equal(pulse.total, 4);
+  assert.deepEqual(
+    pulse.vulnerable.map((person) => person.person),
+    ["late", "North Clinic"],
+  );
+  assert.equal(pulse.vulnerable[0]?.file, "folder/late.json");
+  assert.equal(pulse.vulnerable[0]?.vulnerable, true);
+  assert.equal(pulse.vulnerable[0]?.vulnerability_reason, "They are two months late and cannot pay this month.");
+  assert.equal(pulse.vulnerable[0]?.next_step, "Offer a payment plan and a hardship callback.");
+  assert.equal(pulse.vulnerable[1]?.file, "older.txt");
+  assert.equal(JSON.stringify(pulse.vulnerable).includes("price"), false);
 });
 
 test("call results aggregate the pulse without a survey score", () => {

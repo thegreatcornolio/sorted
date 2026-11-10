@@ -14,11 +14,12 @@ https://sorted.trilogybpo.com
 | --- | --- |
 | `/` and `/live` | Home pulse. NPS and CSAT for scored transcripts, the sentiment mix, the top detractor reasons, and one evidence quote. |
 | `/live/interactions` | Live interactions. Scored files from that pulse, newest first. |
+| `/live/vulnerable` | Vulnerable customers on medical inbound calls. NPS and CSAT stay. Each person, why they were categorised, and a suggested next step. |
 | `/demo` | Scripted demo of the same desk shape: voice, email, and WhatsApp. |
 | `/demo/interactions` | The scripted queue. `/interactions` and `/nadclinic` open this same queue. |
 | `/scoring` | Score model for the demo, including Replay. It sits with the demo menu. |
 
-The live menu is Live and Interactions. Demo is a separate link.
+The live menu is Live, Interactions, and Vulnerable Customers. Demo is a separate link.
 
 The home NPS dial runs from −100 to +100. It is the share of promoters minus the share of detractors. Promoters are predicted 9–10, passives are 7–8, and detractors are 0–6. Passives stay in the count and are left out of the subtraction. The CSAT dial is the average of the 1–5 estimates. The page draws immediately, shows a short waiting line, and stops the pulse request after a few seconds with a retry. It refreshes every 30 seconds.
 
@@ -28,7 +29,7 @@ These live transcripts have no channel field, and the page does not add one.
 
 The home page can clear results, and it can clear stored transcripts after a confirmation. See [Clear the pulse](#clear-the-pulse).
 
-A Vulnerable Customers page is coming on an open pull request. It is not in this tree, so this branch has no Vulnerable Customers route. The scorer on main does not yet add vulnerable-customer fields.
+`/live/vulnerable` lists people the scorer marked vulnerable: trouble paying, a late payment, or a change in circumstances that means they cannot pay. Each row is the person, the reason, and a suggested next step. Ordinary price dislike is not listed. The list is `vulnerable` on `GET /api/pulse`. An older running revision of the container omits that list, and the page shows nobody until a new revision is serving the site.
 
 ## GitHub Pages
 
@@ -51,6 +52,7 @@ npm run dev
 
 - Home pulse and `/live`: http://localhost:3000
 - Live interactions: http://localhost:3000/live/interactions
+- Vulnerable customers: http://localhost:3000/live/vulnerable
 - Demo: http://localhost:3000/demo
 - Demo interactions: http://localhost:3000/demo/interactions
 - Score model: http://localhost:3000/scoring

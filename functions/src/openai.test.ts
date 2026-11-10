@@ -26,6 +26,9 @@ const booked = {
   primary_reason: "They booked and paid for the appointment.",
   evidence: "All right, I'll see you tomorrow morning once the payment was successful.",
   summary: "The caller disliked the price, then booked and paid.",
+  vulnerable: false,
+  vulnerability_reason: "",
+  next_step: "",
 };
 
 function env(overrides: Record<string, string> = {}): NodeJS.ProcessEnv {
@@ -50,6 +53,14 @@ test("the request asks for strict JSON and judges the whole call", () => {
   assert.match(body.messages[0]?.content ?? "", /predicted_nps is 9/);
   assert.match(body.messages[0]?.content ?? "", /csat is 4/);
   assert.match(body.messages[0]?.content ?? "", /"O\."/);
+  assert.match(body.messages[0]?.content ?? "", /trouble paying/i);
+  assert.match(body.messages[0]?.content ?? "", /late on payments/i);
+  assert.match(body.messages[0]?.content ?? "", /change in circumstances/i);
+  assert.match(body.messages[0]?.content ?? "", /ordinary price dislike/i);
+  const properties = body.response_format.json_schema.schema.properties as Record<string, { type: string }>;
+  assert.equal(properties.vulnerable?.type, "boolean");
+  assert.equal(properties.vulnerability_reason?.type, "string");
+  assert.equal(properties.next_step?.type, "string");
   assert.equal(body.messages[1]?.content, transcript);
   assert.equal(JSON.stringify(body).includes("test-key-value"), false);
 });
@@ -61,7 +72,57 @@ test("a booked paid close maps to promoter 9 and csat 4", () => {
   assert.equal(score.csat, 4);
   assert.equal(score.resolved, true);
   assert.equal(score.sentiment_end, "positive");
+  assert.equal(score.vulnerable, false);
+  assert.equal(score.vulnerability_reason, "");
+  assert.equal(score.next_step, "");
   assert.match(score.evidence, /see you tomorrow/i);
+});
+
+test("ordinary price dislike is not stored as vulnerable", () => {
+  const score = acceptJudgment(
+    {
+      ...booked,
+      vulnerability_reason: "They disliked the price.",
+      next_step: "Apologise for the price.",
+    },
+    transcript,
+  );
+  assert.equal(score.vulnerable, false);
+  assert.equal(score.vulnerability_reason, "");
+  assert.equal(score.next_step, "");
+});
+
+test("a caller who cannot pay is vulnerable, with a reason and a next step", () => {
+  const hardship = "I lost my job last month and I am two months late, so I cannot pay this bill.";
+  const score = acceptJudgment(
+    {
+      ...booked,
+      predicted_nps: 4,
+      nps_category: "detractor",
+      sentiment_start: "negative",
+      sentiment_end: "negative",
+      resolved: false,
+      csat: 2,
+      primary_reason: "They cannot pay after losing work.",
+      evidence: hardship,
+      summary: "The caller is late and cannot pay.",
+      vulnerable: true,
+      vulnerability_reason: "They lost their job and are two months late, so they cannot pay.",
+      next_step: "Offer a payment plan and a hardship callback.",
+    },
+    hardship,
+  );
+  assert.equal(score.vulnerable, true);
+  assert.equal(score.vulnerability_reason, "They lost their job and are two months late, so they cannot pay.");
+  assert.equal(score.next_step, "Offer a payment plan and a hardship callback.");
+  assert.throws(
+    () => acceptJudgment({ ...booked, vulnerable: true, vulnerability_reason: "", next_step: "Call them back." }, transcript),
+    /reason and a next step/,
+  );
+  assert.throws(
+    () => acceptJudgment({ ...booked, vulnerable: true, vulnerability_reason: "They cannot pay.", next_step: "  " }, transcript),
+    /reason and a next step/,
+  );
 });
 
 test("the model JSON is rejected when it disagrees with itself or quotes a fragment", () => {
@@ -96,6 +157,9 @@ test("the live call posts the transcript and returns the strict score", async ()
   });
   assert.equal(score.nps_category, "promoter");
   assert.equal(score.csat, 4);
+  assert.equal(score.vulnerable, false);
+  assert.equal(score.vulnerability_reason, "");
+  assert.equal(score.next_step, "");
   assert.equal(seen?.url, chatUrl(openAISettings(env())));
   assert.equal(seen?.key, "test-key-value");
   assert.equal(seen?.body.includes("test-key-value"), false);

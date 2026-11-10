@@ -25,6 +25,7 @@ const EMPTY = overviewFromPulse({
   evidence: null,
   movement: [],
   calls: [],
+  vulnerable: [],
 });
 
 type Phase = "waiting" | "ready" | "error";

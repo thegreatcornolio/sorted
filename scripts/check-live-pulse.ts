@@ -76,6 +76,7 @@ expect(aggregate?.calls.length === 0, "a pulse without calls does not invent any
 expect(aggregate?.csat === null, "a missing csat stays blank");
 expect(aggregate != null && !("nps" in aggregate), "survey nps is not kept");
 expect(aggregate != null && !("channel" in aggregate), "channel is not kept");
+expect(aggregate?.vulnerable.length === 0, "a pulse without the field lists nobody");
 
 if (aggregate) {
   const overview = overviewFromPulse(aggregate);
@@ -147,6 +148,30 @@ const empty = readPulseAggregate({
 expect(empty != null && overviewFromPulse(empty).nps === null, "empty pulse has no nps");
 expect(empty != null && overviewFromPulse(empty).csat === null, "empty pulse has no csat");
 expect(empty != null && interactionsFromPulse(empty).length === 0, "an empty pulse lists no interactions");
+expect(empty != null && empty.vulnerable.length === 0, "an empty pulse lists no vulnerable customers");
+const listedVulnerable = readPulseAggregate({
+  ...sample,
+  vulnerable: [
+    {
+      person: "North Clinic",
+      file: "older.txt",
+      vulnerable: true,
+      vulnerability_reason: "Their hours were cut, so they cannot pay.",
+      next_step: "Arrange a short payment hold.",
+      scoredAt: "2026-11-08T11:00:00.000Z",
+    },
+    {
+      person: "Price Clinic",
+      file: "price.json",
+      vulnerable: false,
+      vulnerability_reason: "They disliked the price.",
+      next_step: "Apologise for the price.",
+    },
+  ],
+});
+expect(listedVulnerable?.vulnerable.length === 1, "only a supported vulnerable row is kept");
+expect(listedVulnerable?.vulnerable[0]?.person === "North Clinic", "the person stays on the pulse row");
+expect(listedVulnerable?.vulnerable[0]?.next_step === "Arrange a short payment hold.", "the next step stays on the pulse row");
 const rated = readPulseAggregate({ ...sample, csat: 2.44 });
 expect(rated?.csat === 2.4, "csat is kept to one decimal");
 expect(rated != null && overviewFromPulse(rated).csat === 2.4, "live overview uses average csat");
@@ -181,6 +206,16 @@ expect(liveOverview.includes('pathname: "/live/interactions"') && liveOverview.i
 const header = readFileSync(new URL("../src/components/SiteHeader.tsx", import.meta.url), "utf8");
 expect(header.includes('href: "/", label: "Live"'), "the live menu links Live to home");
 expect(header.includes('href: "/live/interactions", label: "Interactions"'), "the live menu links to live interactions");
+expect(header.includes('href: "/live/vulnerable", label: "Vulnerable Customers"'), "the live menu links to vulnerable customers");
+const vulnerablePage = readFileSync(new URL("../src/app/live/vulnerable/page.tsx", import.meta.url), "utf8");
+const vulnerableCustomers = readFileSync(new URL("../src/components/VulnerableCustomers.tsx", import.meta.url), "utf8");
+expect(vulnerablePage.includes("<VulnerableCustomers"), "vulnerable customers is its own page");
+expect(vulnerableCustomers.includes("loadPulseAggregate"), "the vulnerable page reads the pulse");
+expect(vulnerableCustomers.includes('label="NPS"') && vulnerableCustomers.includes('label="CSAT"'), "NPS and CSAT stay on the vulnerable page");
+expect(vulnerableCustomers.includes('data-testid="vulnerable-customer"'), "each vulnerable person is a row");
+expect(vulnerableCustomers.includes('data-testid="vulnerable-reason"'), "each row shows why they were categorised");
+expect(vulnerableCustomers.includes('data-testid="vulnerable-next-step"'), "each row shows a next step");
+expect(!/listBlobs|incomingtranscripts|processedtranscripts/.test(vulnerableCustomers), "the vulnerable page does not scan blobs");
 expect(header.includes('href: "/demo", label: "Demo"'), "demo is a separate link");
 expect(header.includes('href: "/scoring", label: "Score model"'), "score model stays with the demo");
 expect(header.includes("const links = demo"), "score model is not on the live menu");

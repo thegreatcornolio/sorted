@@ -25,6 +25,9 @@ export type TranscriptScore = {
   sentimentEnd: Sentiment;
   resolved: boolean;
   summary: string;
+  vulnerable: boolean;
+  vulnerability_reason: string;
+  next_step: string;
 };
 
 type Spoken = { speaker: string | null; text: string };
@@ -71,6 +74,9 @@ function scoreFromJudgment(file: string, parsed: Parsed, judgment: CallJudgment)
     sentimentEnd: judgment.sentiment_end,
     resolved: judgment.resolved,
     summary: judgment.summary,
+    vulnerable: judgment.vulnerable,
+    vulnerability_reason: judgment.vulnerability_reason,
+    next_step: judgment.next_step,
   };
 }
 

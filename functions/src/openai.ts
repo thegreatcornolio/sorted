@@ -14,6 +14,9 @@ export const JUDGMENT_FIELDS = [
   "primary_reason",
   "evidence",
   "summary",
+  "vulnerable",
+  "vulnerability_reason",
+  "next_step",
 ] as const;
 
 export const MODEL_CHARS = 100_000;
@@ -40,6 +43,10 @@ export const SCORE_INSTRUCTIONS = [
   "Polite agent phrases are not the caller's verdict.",
   "Speech-recognition confidence, redaction tokens, and any score written in the file are not a survey answer.",
   "Do not invent a quote or a score.",
+  "vulnerable is true only when the transcript shows the caller has trouble paying, is late on payments, or mentions a change in circumstances that means they cannot pay.",
+  "Do not mark ordinary price dislike as vulnerable.",
+  "When vulnerable is false, vulnerability_reason and next_step are empty strings.",
+  "When vulnerable is true, vulnerability_reason is one short sentence on why they were categorised, and next_step is one short suggested next step for the team.",
 ].join(" ");
 
 export type CallJudgment = {
@@ -52,6 +59,9 @@ export type CallJudgment = {
   primary_reason: string;
   evidence: string;
   summary: string;
+  vulnerable: boolean;
+  vulnerability_reason: string;
+  next_step: string;
 };
 
 export type TranscriptJudge = (transcript: string) => Promise<CallJudgment>;
@@ -81,6 +91,9 @@ export function judgmentSchema(): Record<string, unknown> {
       primary_reason: { type: "string" },
       evidence: { type: "string" },
       summary: { type: "string" },
+      vulnerable: { type: "boolean" },
+      vulnerability_reason: { type: "string" },
+      next_step: { type: "string" },
     },
   };
 }
@@ -159,6 +172,7 @@ export function acceptJudgment(value: unknown, transcript: string): CallJudgment
   const summary = shortText(record.summary, 600);
   if (!summary) throw new Error("The score is missing a summary.");
   const evidence = evidenceQuote(record.evidence, transcript);
+  const vulnerability = vulnerabilityFields(record);
   return {
     predicted_nps: predicted,
     nps_category: band,
@@ -169,6 +183,7 @@ export function acceptJudgment(value: unknown, transcript: string): CallJudgment
     primary_reason: reason,
     evidence,
     summary,
+    ...vulnerability,
   };
 }
 
@@ -246,6 +261,27 @@ function csatMatches(band: NpsBand, csat: number): boolean {
   if (band === "promoter") return csat >= 4;
   if (band === "passive") return csat === 3;
   return csat <= 2;
+}
+
+function vulnerabilityFields(record: Record<string, unknown>): {
+  vulnerable: boolean;
+  vulnerability_reason: string;
+  next_step: string;
+} {
+  if (typeof record.vulnerable !== "boolean") throw new Error("vulnerable must be true or false.");
+  const reason = boundedText(record.vulnerability_reason, 240);
+  const next = boundedText(record.next_step, 240);
+  if (reason == null || next == null) throw new Error("vulnerability_reason and next_step must be text.");
+  if (!record.vulnerable) return { vulnerable: false, vulnerability_reason: "", next_step: "" };
+  if (!reason || !next) throw new Error("A vulnerable caller needs a reason and a next step.");
+  return { vulnerable: true, vulnerability_reason: reason, next_step: next };
+}
+
+function boundedText(value: unknown, max: number): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (trimmed.length > max) return null;
+  return trimmed;
 }
 
 function shortText(value: unknown, max: number): string | null {

@@ -143,6 +143,9 @@ function record(file: string, scoredAt: string, npsBand: ScoredRecord["npsBand"]
     sentimentEnd: sentiment,
     resolved: npsBand === "promoter",
     summary: "Stored score.",
+    vulnerable: false,
+    vulnerability_reason: "",
+    next_step: "",
     scoredAt,
   };
 }

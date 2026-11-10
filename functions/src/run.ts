@@ -24,6 +24,9 @@ export type ScoredRecord = {
   sentimentEnd: TranscriptScore["sentiment"];
   resolved: boolean;
   summary: string;
+  vulnerable: boolean;
+  vulnerability_reason: string;
+  next_step: string;
   scoredAt: string;
 };
 
@@ -116,6 +119,9 @@ function resultBody(score: TranscriptScore, scoredAt: string): ScoredRecord {
     sentimentEnd: score.sentimentEnd,
     resolved: score.resolved,
     summary: score.summary,
+    vulnerable: score.vulnerable,
+    vulnerability_reason: score.vulnerability_reason,
+    next_step: score.next_step,
     scoredAt,
   };
 }

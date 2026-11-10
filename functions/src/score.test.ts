@@ -15,6 +15,9 @@ function judgment(overrides: Partial<CallJudgment> = {}): CallJudgment {
     primary_reason: "They booked and paid for the appointment.",
     evidence: "All right, I'll see you tomorrow morning once the payment was successful.",
     summary: "The caller disliked the price, then booked and paid.",
+    vulnerable: false,
+    vulnerability_reason: "",
+    next_step: "",
     ...overrides,
   };
 }
@@ -39,6 +42,9 @@ test("a booked and paid close is a promoter with csat 4", async () => {
   assert.equal(result.sentimentEnd, "positive");
   assert.equal(result.resolved, true);
   assert.equal(result.reason, "They booked and paid for the appointment.");
+  assert.equal(result.vulnerable, false);
+  assert.equal(result.vulnerability_reason, "");
+  assert.equal(result.next_step, "");
   assert.equal(result.evidence === "O." || result.evidence === "Yes." || result.evidence === "Okay.", false);
   assert.ok(result.evidence.split(/\s+/).length >= 4);
   assert.equal(text.includes(result.evidence), true);

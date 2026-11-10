@@ -15,6 +15,19 @@ type ScoredCall = {
   csat: number | null;
   reason: string | null;
   evidence: string | null;
+  company: string | null;
+  vulnerable: boolean;
+  vulnerability_reason: string | null;
+  next_step: string | null;
+  scoredAt: string;
+};
+
+export type VulnerableCustomer = {
+  person: string;
+  file: string;
+  vulnerable: true;
+  vulnerability_reason: string;
+  next_step: string;
   scoredAt: string;
 };
 
@@ -38,6 +51,7 @@ export type PulseAggregate = {
   evidence: { quote: string; file: string } | null;
   movement: { file: string; scoredAt: string; positive: number; negative: number }[];
   calls: PulseDetractorCall[];
+  vulnerable: VulnerableCustomer[];
 };
 
 const SENTIMENTS = new Set<Sentiment>(["positive", "mixed", "negative"]);
@@ -105,6 +119,7 @@ export function aggregatePulse(values: unknown[]): PulseAggregate {
     evidence,
     movement,
     calls: opened,
+    vulnerable: vulnerableCustomers(calls),
   };
 }
 
@@ -143,8 +158,35 @@ function readCall(value: unknown): ScoredCall | null {
     csat,
     reason: textOrNull(record.reason),
     evidence: textOrNull(record.evidence),
+    company: textOrNull(record.company),
+    vulnerable: record.vulnerable === true,
+    vulnerability_reason: textOrNull(record.vulnerability_reason),
+    next_step: textOrNull(record.next_step),
     scoredAt: typeof record.scoredAt === "string" ? record.scoredAt : "",
   };
+}
+
+function vulnerableCustomers(calls: ScoredCall[]): VulnerableCustomer[] {
+  return calls
+    .filter((call): call is ScoredCall & { vulnerability_reason: string; next_step: string } =>
+      call.vulnerable && !!call.vulnerability_reason && !!call.next_step,
+    )
+    .map((call) => ({
+      person: personLabel(call),
+      file: call.file,
+      vulnerable: true as const,
+      vulnerability_reason: call.vulnerability_reason,
+      next_step: call.next_step,
+      scoredAt: call.scoredAt,
+    }))
+    .sort((a, b) => b.scoredAt.localeCompare(a.scoredAt) || a.person.localeCompare(b.person) || a.file.localeCompare(b.file));
+}
+
+function personLabel(call: ScoredCall): string {
+  if (call.company) return call.company;
+  const base = call.file.split("/").pop() || call.file;
+  const stem = base.replace(/\.[^.]+$/, "");
+  return stem || base;
 }
 
 function textOrNull(value: unknown): string | null {

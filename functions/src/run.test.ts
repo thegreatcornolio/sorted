@@ -49,6 +49,9 @@ function judgment(evidence: string, band: CallJudgment["nps_category"] = "detrac
     primary_reason: "The caller said what happened at the end.",
     evidence,
     summary: "The score follows the ending of the call.",
+    vulnerable: false,
+    vulnerability_reason: "",
+    next_step: "",
   };
 }
 
@@ -83,6 +86,9 @@ test("scores every file in the incoming container and moves successes to process
     evidence: string;
     company: string;
     predictedNps: number;
+    vulnerable: boolean;
+    vulnerability_reason: string;
+    next_step: string;
     scoredAt: string;
   };
   assert.equal(result.file, "harper.txt");
@@ -94,6 +100,9 @@ test("scores every file in the incoming container and moves successes to process
   assert.equal(result.reason, "The caller said what happened at the end.");
   assert.equal(result.evidence, "The refund never arrived.");
   assert.equal(result.company, "Harper Stores");
+  assert.equal(result.vulnerable, false);
+  assert.equal(result.vulnerability_reason, "");
+  assert.equal(result.next_step, "");
   assert.equal(result.scoredAt, "2026-11-07T09:40:00.000Z");
   assert.equal(processed.blobs.get("results/harper.txt.json")?.contentType, "application/json; charset=utf-8");
   assert.equal(processed.blobs.has("results/harper.txt.error.json"), false);
