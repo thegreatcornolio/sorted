@@ -4,6 +4,8 @@ import {
   loadPulseAggregate,
   clearResultsUrl,
   clearTranscriptsUrl,
+  callByFile,
+  callsForReason,
   interactionsFromPulse,
   overviewFromPulse,
   PULSE_FETCH_TIMEOUT_MS,
@@ -70,6 +72,7 @@ const sample = {
 
 const aggregate = readPulseAggregate(sample);
 expect(aggregate?.total === 3, "aggregate total");
+expect(aggregate?.calls.length === 0, "a pulse without calls does not invent any");
 expect(aggregate?.csat === null, "a missing csat stays blank");
 expect(aggregate != null && !("nps" in aggregate), "survey nps is not kept");
 expect(aggregate != null && !("channel" in aggregate), "channel is not kept");
@@ -92,7 +95,44 @@ if (aggregate) {
   expect(listed[0]?.quote === "Please cancel the cover.", "the quote stays on its file");
   expect(listed[1]?.quote === null, "other files do not borrow the quote");
   expect(listed[1]?.positive === 100 && listed[1]?.negative === 0, "the mix stays the pulse record");
+  expect(overview.evidenceCall === null, "evidence does not open a call the pulse did not list");
+  expect(overview.reasons[0]?.calls.length === 0, "a reason without calls stays a label");
 }
+
+const withCalls = readPulseAggregate({
+  ...sample,
+  calls: [
+    {
+      file: "later.json",
+      scoredAt: "2026-11-08T12:00:00.000Z",
+      npsBand: "detractor",
+      csat: 1,
+      reason: "They wanted to cancel",
+      quote: "I want to cancel.",
+    },
+    {
+      file: "again.json",
+      scoredAt: "2026-11-08T13:00:00.000Z",
+      npsBand: "detractor",
+      csat: 2,
+      reason: "They wanted to cancel",
+      quote: "Please cancel the cover.",
+    },
+  ],
+});
+expect(
+  withCalls != null && callsForReason(withCalls, "They wanted to cancel").map((call) => call.file).join(",") === "again.json,later.json",
+  "newest detractor for a reason is first",
+);
+expect(withCalls != null && callByFile(withCalls, "again.json")?.quote === "Please cancel the cover.", "a file opens its own quote");
+expect(withCalls != null && callByFile(withCalls, "again.json")?.npsBand === "detractor", "the opened call keeps its NPS band");
+expect(withCalls != null && callByFile(withCalls, "again.json")?.csat === 2, "the opened call keeps its CSAT");
+expect(withCalls != null && overviewFromPulse(withCalls).evidenceCall?.file === "again.json", "evidence opens the call it quotes");
+expect(withCalls != null && callsForReason(withCalls, "Missing").length === 0, "an unknown reason opens nothing");
+expect(
+  readPulseAggregate({ ...sample, calls: [{ file: "first.json", npsBand: "promoter", csat: 5, reason: null, quote: null }] }) === null,
+  "a promoter is not a detractor call",
+);
 
 expect(readPulseAggregate({ total: 1, mix: { positive: 0, neutral: 100, negative: 0 }, promoters: 1, detractors: 1, reasons: [], evidence: null, movement: [] }) === null, "bands cannot exceed total");
 const empty = readPulseAggregate({
@@ -135,6 +175,9 @@ expect(liveInteractionsPage.includes("<LiveInteractions"), "live interactions is
 expect(liveInteractions.includes("loadPulseAggregate") && liveInteractions.includes("interactionsFromPulse"), "live interactions reads the pulse");
 expect(!liveInteractions.includes("allRows") && !/whatsapp|gl-1004|Harper/i.test(liveInteractions), "live interactions does not invent demo calls");
 expect(liveInteractions.includes('data-testid="live-interactions-empty"'), "live interactions has an empty state");
+expect(liveInteractions.includes("callsForReason") && liveInteractions.includes("LiveCallDetail"), "a live reason opens its scored calls");
+expect(!liveInteractions.includes("allRows"), "the opened call is not a demo row");
+expect(liveOverview.includes('pathname: "/live/interactions"') && liveOverview.includes("evidenceHref"), "reasons and the evidence quote open a live call");
 const header = readFileSync(new URL("../src/components/SiteHeader.tsx", import.meta.url), "utf8");
 expect(header.includes('href: "/", label: "Live"'), "the live menu links Live to home");
 expect(header.includes('href: "/live/interactions", label: "Interactions"'), "the live menu links to live interactions");

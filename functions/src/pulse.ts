@@ -18,6 +18,16 @@ type ScoredCall = {
   scoredAt: string;
 };
 
+/** One detractor, enough to open it from a reason or the evidence quote. */
+export type PulseDetractorCall = {
+  file: string;
+  scoredAt: string;
+  npsBand: "detractor";
+  csat: number | null;
+  reason: string | null;
+  quote: string | null;
+};
+
 export type PulseAggregate = {
   total: number;
   mix: { positive: number; neutral: number; negative: number };
@@ -27,6 +37,7 @@ export type PulseAggregate = {
   reasons: { label: string; count: number }[];
   evidence: { quote: string; file: string } | null;
   movement: { file: string; scoredAt: string; positive: number; negative: number }[];
+  calls: PulseDetractorCall[];
 };
 
 const SENTIMENTS = new Set<Sentiment>(["positive", "mixed", "negative"]);
@@ -53,6 +64,7 @@ export function aggregatePulse(values: unknown[]): PulseAggregate {
   const reasons = new Map<string, number>();
   let evidence: PulseAggregate["evidence"] = null;
   const movement: PulseAggregate["movement"] = [];
+  const opened: PulseAggregate["calls"] = [];
 
   for (const call of calls) {
     if (call.sentiment === "positive") positive += 1;
@@ -67,6 +79,14 @@ export function aggregatePulse(values: unknown[]): PulseAggregate {
       detractors += 1;
       if (call.reason) reasons.set(call.reason, (reasons.get(call.reason) ?? 0) + 1);
       if (call.evidence) evidence = { quote: call.evidence, file: call.file };
+      opened.push({
+        file: call.file,
+        scoredAt: call.scoredAt,
+        npsBand: "detractor",
+        csat: call.csat,
+        reason: call.reason,
+        quote: call.evidence,
+      });
     }
     const shares = wholeShares([positive, neutral, negative]);
     movement.push({ file: call.file, scoredAt: call.scoredAt, positive: shares[0], negative: shares[2] });
@@ -84,6 +104,7 @@ export function aggregatePulse(values: unknown[]): PulseAggregate {
       .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label)),
     evidence,
     movement,
+    calls: opened,
   };
 }
 
