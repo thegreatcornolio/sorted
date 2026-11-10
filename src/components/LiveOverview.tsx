@@ -158,46 +158,6 @@ export function LiveOverview() {
               </div>
             ) : null}
           </div>
-          <section className="panel clear-transcripts" aria-label="Clear transcripts" data-testid="clear-transcripts">
-            <h2>Clear transcripts</h2>
-            <p>
-              Deletes every file in processedtranscripts: the moved call transcripts, the result JSON, and the error JSON. It also
-              writes an empty score record. Files still in incomingtranscripts are left in place.
-            </p>
-            {confirmTranscripts ? (
-              <div className="intro-actions">
-                <p>Delete those stored transcripts and result files? This cannot be undone.</p>
-                <button
-                  type="button"
-                  className="text-button is-danger"
-                  onClick={deleteTranscripts}
-                  disabled={deletingTranscripts || clearing}
-                  data-testid="confirm-clear-transcripts"
-                >
-                  {deletingTranscripts ? "Deleting stored transcripts" : "Delete stored transcripts"}
-                </button>
-                <button
-                  type="button"
-                  className="text-button"
-                  onClick={() => setConfirmTranscripts(false)}
-                  disabled={deletingTranscripts}
-                  data-testid="cancel-clear-transcripts"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                className="text-button is-danger"
-                onClick={() => setConfirmTranscripts(true)}
-                disabled={deletingTranscripts || clearing}
-                data-testid="ask-clear-transcripts"
-              >
-                Clear transcripts
-              </button>
-            )}
-          </section>
           <div className="summary-grid">
             <section className="panel summary-card" aria-label="NPS">
               <ScoreDial label="NPS" value={shown.nps} min={-100} max={100} digits={0} signed />
@@ -247,6 +207,46 @@ export function LiveOverview() {
                   </li>
                 ))}
               </ol>
+            )}
+          </section>
+          <section className="panel clear-transcripts" aria-label="Clear transcripts" data-testid="clear-transcripts">
+            <h2>Clear transcripts</h2>
+            <p>
+              Deletes every file in processedtranscripts: the moved call transcripts, the result JSON, and the error JSON. It also
+              writes an empty score record. Files still in incomingtranscripts are left in place.
+            </p>
+            {confirmTranscripts ? (
+              <div className="intro-actions">
+                <p>Delete those stored transcripts and result files? This cannot be undone.</p>
+                <button
+                  type="button"
+                  className="text-button is-danger"
+                  onClick={deleteTranscripts}
+                  disabled={deletingTranscripts || clearing}
+                  data-testid="confirm-clear-transcripts"
+                >
+                  {deletingTranscripts ? "Deleting stored transcripts" : "Delete stored transcripts"}
+                </button>
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() => setConfirmTranscripts(false)}
+                  disabled={deletingTranscripts}
+                  data-testid="cancel-clear-transcripts"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="text-button is-danger"
+                onClick={() => setConfirmTranscripts(true)}
+                disabled={deletingTranscripts || clearing}
+                data-testid="ask-clear-transcripts"
+              >
+                Clear transcripts
+              </button>
             )}
           </section>
         </div>

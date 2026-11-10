@@ -157,6 +157,11 @@ expect(liveOverview.includes('data-testid="ask-clear-transcripts"'), "Clear tran
 expect(liveOverview.includes('data-testid="confirm-clear-transcripts"'), "Clear transcripts has a confirm button");
 expect(liveOverview.includes("clearStoredTranscripts"), "confirming Clear transcripts calls the pulse host");
 expect(liveOverview.includes("incomingtranscripts"), "Clear transcripts says the inbox is left in place");
+expect(
+  liveOverview.indexOf('data-testid="clear-results"') < liveOverview.indexOf('data-testid="clear-transcripts"') &&
+    liveOverview.indexOf("Top 5 reasons for bad NPS") < liveOverview.indexOf('data-testid="clear-transcripts"'),
+  "Clear transcripts sits below the scores and reasons",
+);
 expect(!liveOverview.includes("is-single"), "CSAT sits beside NPS");
 expect(!/genii/i.test(liveOverview + livePage), "the live page does not mention Genii");
 expect(!/sample/i.test(liveOverview + livePage), "the live page has no sample disclaimer");
