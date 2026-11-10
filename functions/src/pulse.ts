@@ -1,4 +1,5 @@
 import { RESULTS_PREFIX } from "./layout";
+import { PAYMENT_TROUBLE_NEXT_STEP, showsTroublePaying, troublePayingReason } from "./paymentTrouble";
 
 export const PULSE_ROUTE = "pulse";
 
@@ -168,18 +169,32 @@ function readCall(value: unknown): ScoredCall | null {
 
 function vulnerableCustomers(calls: ScoredCall[]): VulnerableCustomer[] {
   return calls
-    .filter((call): call is ScoredCall & { vulnerability_reason: string; next_step: string } =>
-      call.vulnerable && !!call.vulnerability_reason && !!call.next_step,
-    )
-    .map((call) => ({
-      person: personLabel(call),
-      file: call.file,
-      vulnerable: true as const,
-      vulnerability_reason: call.vulnerability_reason,
-      next_step: call.next_step,
-      scoredAt: call.scoredAt,
-    }))
+    .flatMap((call) => {
+      const listing = vulnerabilityListing(call);
+      if (!listing) return [];
+      return [
+        {
+          person: personLabel(call),
+          file: call.file,
+          vulnerable: true as const,
+          vulnerability_reason: listing.vulnerability_reason,
+          next_step: listing.next_step,
+          scoredAt: call.scoredAt,
+        },
+      ];
+    })
     .sort((a, b) => b.scoredAt.localeCompare(a.scoredAt) || a.person.localeCompare(b.person) || a.file.localeCompare(b.file));
+}
+
+function vulnerabilityListing(call: ScoredCall): { vulnerability_reason: string; next_step: string } | null {
+  if (call.vulnerable && call.vulnerability_reason && call.next_step) {
+    return { vulnerability_reason: call.vulnerability_reason, next_step: call.next_step };
+  }
+  const fromCall = troublePayingReason(call.reason, call.evidence);
+  if (!fromCall) return null;
+  const reason =
+    call.vulnerability_reason && showsTroublePaying(call.vulnerability_reason) ? call.vulnerability_reason : fromCall;
+  return { vulnerability_reason: reason, next_step: call.next_step?.trim() || PAYMENT_TROUBLE_NEXT_STEP };
 }
 
 function personLabel(call: ScoredCall): string {

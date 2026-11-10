@@ -1,4 +1,5 @@
 import { OPENAI_API_KEY, OPENAI_API_VERSION, OPENAI_DEPLOYMENT, OPENAI_ENDPOINT } from "./layout";
+import { PAYMENT_TROUBLE_NEXT_STEP, PAYMENT_TROUBLE_REASON, showsTroublePaying, troublePayingReason } from "./paymentTrouble";
 
 type Sentiment = "positive" | "mixed" | "negative";
 
@@ -44,7 +45,9 @@ export const SCORE_INSTRUCTIONS = [
   "Speech-recognition confidence, redaction tokens, and any score written in the file are not a survey answer.",
   "Do not invent a quote or a score.",
   "vulnerable is true only when the transcript shows the caller has trouble paying, is late on payments, or mentions a change in circumstances that means they cannot pay.",
+  'Saying they cannot afford the service, including "I can\'t afford that", is trouble paying and vulnerable is true.',
   "Do not mark ordinary price dislike as vulnerable.",
+  "A high or unfair price, when the caller can still pay, is ordinary price dislike.",
   "When vulnerable is false, vulnerability_reason and next_step are empty strings.",
   "When vulnerable is true, vulnerability_reason is one short sentence on why they were categorised, and next_step is one short suggested next step for the team.",
 ].join(" ");
@@ -172,7 +175,7 @@ export function acceptJudgment(value: unknown, transcript: string): CallJudgment
   const summary = shortText(record.summary, 600);
   if (!summary) throw new Error("The score is missing a summary.");
   const evidence = evidenceQuote(record.evidence, transcript);
-  const vulnerability = vulnerabilityFields(record);
+  const vulnerability = vulnerabilityFields(record, transcript, reason);
   return {
     predicted_nps: predicted,
     nps_category: band,
@@ -263,7 +266,11 @@ function csatMatches(band: NpsBand, csat: number): boolean {
   return csat <= 2;
 }
 
-function vulnerabilityFields(record: Record<string, unknown>): {
+function vulnerabilityFields(
+  record: Record<string, unknown>,
+  transcript: string,
+  primaryReason: string,
+): {
   vulnerable: boolean;
   vulnerability_reason: string;
   next_step: string;
@@ -272,9 +279,13 @@ function vulnerabilityFields(record: Record<string, unknown>): {
   const reason = boundedText(record.vulnerability_reason, 240);
   const next = boundedText(record.next_step, 240);
   if (reason == null || next == null) throw new Error("vulnerability_reason and next_step must be text.");
-  if (!record.vulnerable) return { vulnerable: false, vulnerability_reason: "", next_step: "" };
-  if (!reason || !next) throw new Error("A vulnerable caller needs a reason and a next step.");
-  return { vulnerable: true, vulnerability_reason: reason, next_step: next };
+  const trouble = showsTroublePaying(transcript) || showsTroublePaying(primaryReason);
+  if (record.vulnerable && reason && next) return { vulnerable: true, vulnerability_reason: reason, next_step: next };
+  if (!record.vulnerable && !trouble) return { vulnerable: false, vulnerability_reason: "", next_step: "" };
+  if (record.vulnerable && !trouble) throw new Error("A vulnerable caller needs a reason and a next step.");
+  const fromCall = troublePayingReason(primaryReason, transcript);
+  const vulnerability_reason = reason && showsTroublePaying(reason) ? reason : fromCall || PAYMENT_TROUBLE_REASON;
+  return { vulnerable: true, vulnerability_reason, next_step: next || PAYMENT_TROUBLE_NEXT_STEP };
 }
 
 function boundedText(value: unknown, max: number): string | null {

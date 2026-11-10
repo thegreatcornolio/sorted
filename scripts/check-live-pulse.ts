@@ -172,6 +172,39 @@ const listedVulnerable = readPulseAggregate({
 expect(listedVulnerable?.vulnerable.length === 1, "only a supported vulnerable row is kept");
 expect(listedVulnerable?.vulnerable[0]?.person === "North Clinic", "the person stays on the pulse row");
 expect(listedVulnerable?.vulnerable[0]?.next_step === "Arrange a short payment hold.", "the next step stays on the pulse row");
+const missedAfford = readPulseAggregate({
+  ...sample,
+  calls: [
+    {
+      file: "fec084c7b04c47cc869867150aee6943_transcript.json",
+      scoredAt: "2026-11-10T19:26:57.878Z",
+      npsBand: "detractor",
+      csat: 2,
+      reason: "Caller could not afford the suggested service.",
+      quote: "Oh, I can't afford that. If he can't take mine, I can't afford that.",
+    },
+    {
+      file: "price.json",
+      scoredAt: "2026-11-10T19:00:00.000Z",
+      npsBand: "detractor",
+      csat: 2,
+      reason: "They disliked the price",
+      quote: "That price is far too high.",
+    },
+  ],
+});
+expect(missedAfford?.vulnerable.length === 1, "a caller who cannot afford the service is listed from the call");
+expect(
+  missedAfford?.vulnerable[0]?.file === "fec084c7b04c47cc869867150aee6943_transcript.json",
+  "the missed afford file is the listed person",
+);
+expect(
+  missedAfford?.vulnerable[0]?.vulnerability_reason === "Caller could not afford the suggested service.",
+  "the afford reason is kept",
+);
+expect((missedAfford?.vulnerable[0]?.next_step.length ?? 0) > 0, "the afford call has a next step");
+expect(missedAfford?.calls.length === 2, "a price complaint stays a detractor call");
+expect(missedAfford?.vulnerable.some((person) => person.file === "price.json") === false, "ordinary price dislike stays off the list");
 const rated = readPulseAggregate({ ...sample, csat: 2.44 });
 expect(rated?.csat === 2.4, "csat is kept to one decimal");
 expect(rated != null && overviewFromPulse(rated).csat === 2.4, "live overview uses average csat");
