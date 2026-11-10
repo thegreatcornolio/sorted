@@ -249,6 +249,27 @@ export function overviewFromPulse(pulse: PulseAggregate): LiveOverview {
   };
 }
 
+export type LiveInteractionRecord = {
+  file: string;
+  scoredAt: string;
+  when: string;
+  positive: number;
+  negative: number;
+  quote: string | null;
+};
+
+/** Newest scored file first. Uses only the pulse records the live page already loaded. */
+export function interactionsFromPulse(pulse: PulseAggregate): LiveInteractionRecord[] {
+  return [...pulse.movement].reverse().map((point) => ({
+    file: point.file,
+    scoredAt: point.scoredAt,
+    when: movementLabel(point.scoredAt),
+    positive: point.positive,
+    negative: point.negative,
+    quote: pulse.evidence?.file === point.file ? pulse.evidence.quote : null,
+  }));
+}
+
 export function movementLabel(scoredAt: string): string {
   const date = new Date(scoredAt);
   if (Number.isNaN(date.getTime())) return scoredAt.trim() || "—";

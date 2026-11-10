@@ -36,7 +36,7 @@ export function Overview() {
 
   return (
     <>
-      <SiteHeader current="overview">
+      <SiteHeader current="demo">
         <span className="live-pill">
           <span className={ingesting ? "dot is-on" : "dot"} aria-hidden="true" />
           {count === 0 ? "Waiting for the first interaction" : ingesting ? `Ingesting ${count} of ${rows.length}` : `Queue ingested · ${rows.length}`}
@@ -48,7 +48,7 @@ export function Overview() {
             <p className="kicker">NPS and CSAT · customer interactions support</p>
             <div className="intro-row">
               <h1>Customer interactions support</h1>
-              <Link href="/live" className="text-button" data-testid="open-live">
+              <Link href="/" className="text-button" data-testid="open-live">
                 Open live scores
               </Link>
             </div>
@@ -106,7 +106,7 @@ export function Overview() {
                 {top.map((item) => (
                   <li key={item.label}>
                     <Link
-                      href={{ pathname: "/interactions", query: { reason: item.label } }}
+                      href={{ pathname: "/demo/interactions", query: { reason: item.label } }}
                       data-testid="top-reason"
                       data-reason={item.label}
                     >

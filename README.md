@@ -9,16 +9,17 @@ npm install
 npm run dev
 ```
 
-- Demo queue: http://localhost:3000 and https://sorted.trilogybpo.com/
-- Live scores: http://localhost:3000/live and https://sorted.trilogybpo.com/live/
-- Interaction desk: http://localhost:3000/interactions and http://localhost:3000/nadclinic
+- Live scores: http://localhost:3000 and https://sorted.trilogybpo.com/ (`/live` is the same page)
+- Live interactions: http://localhost:3000/live/interactions
+- Demo: http://localhost:3000/demo
+- Demo interactions: http://localhost:3000/demo/interactions and http://localhost:3000/nadclinic
 - Score model: http://localhost:3000/scoring
 
-The main page is the simulated queue. It links to the live scores at `/live`. That demo Sentiment Pulse uses the same queue as its NPS and CSAT dials.
+`/` is the live pulse. `/live` opens that same page. The live menu is Live and Interactions. Demo is a separate link, and Score model sits with the demo. `/live/interactions` lists the scored files in the pulse. The demo overview and the demo interactions page keep the scripted queue.
 
-`/live` reads `GET /api/pulse` on `https://sorted-pulse.thankfulflower-819372b8.westus3.azurecontainerapps.io`, the aggregate of processed transcripts. The page draws immediately, shows a short waiting line, and stops the request after a few seconds with a retry. The Function App origin is the public `baseUrl` in `public/sentiment-pulse-config.json`. The path is `/api/pulse`. A build can set `NEXT_PUBLIC_SENTIMENT_PULSE_BASE_URL` to the same origin. These call transcripts have no channel field, and the page does not add one. The site does not contain a storage key.
+`/` and `/live` read `GET /api/pulse` on `https://sorted-pulse.thankfulflower-819372b8.westus3.azurecontainerapps.io`, the aggregate of processed transcripts. The page draws immediately, shows a short waiting line, and stops the request after a few seconds with a retry. The Function App origin is the public `baseUrl` in `public/sentiment-pulse-config.json`. The path is `/api/pulse`. A build can set `NEXT_PUBLIC_SENTIMENT_PULSE_BASE_URL` to the same origin. These call transcripts have no channel field, and the page does not add one. The site does not contain a storage key.
 
-The container scores each incoming transcript with Azure OpenAI and writes the result into the `SentimentPulse` table. `GET /api/pulse` reads that one table record, so `/live` does not scan blobs and does not wait on the model. The five container settings are in `functions/README.md`. Nothing in this repo is an API key or a connection string.
+The container scores each incoming transcript with Azure OpenAI and writes the result into the `SentimentPulse` table. `GET /api/pulse` reads that one table record, so the live pages do not scan blobs and do not wait on the model. The five container settings are in `functions/README.md`. Nothing in this repo is an API key or a connection string.
 
 `npm run build` writes a static site to `out/`. The custom domain is a GitHub Pages branch site of the repository root, so the exported pages are also committed there. `out/` is gitignored and is not what sorted.trilogybpo.com serves. `functions/` is not part of the site build.
 

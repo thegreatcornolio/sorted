@@ -139,7 +139,7 @@ export function LiveOverview() {
                 <button type="button" className="text-button" onClick={clearResults} disabled={clearing} data-testid="clear-results">
                   {clearing ? "Clearing results" : "Clear results"}
                 </button>
-                <Link href="/" className="text-button" data-testid="open-demo">
+                <Link href="/demo" className="text-button" data-testid="open-demo">
                   Open the demo
                 </Link>
               </span>

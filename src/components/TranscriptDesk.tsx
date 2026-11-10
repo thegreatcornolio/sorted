@@ -69,7 +69,7 @@ export function TranscriptDesk() {
 
   return (
     <>
-      <SiteHeader current="interactions">
+      <SiteHeader current="demo-interactions">
         <span className="live-pill">
           <span className={ingesting ? "dot is-on" : "dot"} aria-hidden="true" />
           {count === 0 ? "Waiting for the first interaction" : ingesting ? `Ingesting ${count} of ${rows.length}` : `Queue ingested · ${rows.length}`}
@@ -82,7 +82,7 @@ export function TranscriptDesk() {
             <h1>Interactions</h1>
             <p>
               This is where the hundred interactions are processed, one every few seconds. The{" "}
-              <Link href="/">overview</Link> uses this same queue for NPS, CSAT, and the top reasons.
+              <Link href="/demo">demo overview</Link> uses this same queue for NPS, CSAT, and the top reasons.
             </p>
           </div>
           <div className="score-board">
@@ -135,7 +135,7 @@ export function TranscriptDesk() {
                 {reasonFilter ? (
                   <>
                     {listed.length} {listed.length === 1 ? "detractor" : "detractors"} ·{" "}
-                    <Link href="/interactions">All interactions</Link>
+                    <Link href="/demo/interactions">All interactions</Link>
                   </>
                 ) : (
                   `${count}/${rows.length} · newest first`

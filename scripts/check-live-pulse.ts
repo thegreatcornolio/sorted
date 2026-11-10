@@ -4,6 +4,7 @@ import {
   loadPulseAggregate,
   clearResultsUrl,
   clearTranscriptsUrl,
+  interactionsFromPulse,
   overviewFromPulse,
   PULSE_FETCH_TIMEOUT_MS,
   readPulseAggregate,
@@ -86,6 +87,11 @@ if (aggregate) {
   expect(overview.pulse.series[0]?.time.includes("11:00"), `movement label ${overview.pulse.series[0]?.time}`);
   expect(!JSON.stringify(overview).includes("whatsapp"), "overview has no channel");
   expect(!JSON.stringify(overview).includes("\"nps\":10"), "survey score is not copied");
+  const listed = interactionsFromPulse(aggregate);
+  expect(listed.map((item) => item.file).join(",") === "again.json,first.json", "newest scored file is first");
+  expect(listed[0]?.quote === "Please cancel the cover.", "the quote stays on its file");
+  expect(listed[1]?.quote === null, "other files do not borrow the quote");
+  expect(listed[1]?.positive === 100 && listed[1]?.negative === 0, "the mix stays the pulse record");
 }
 
 expect(readPulseAggregate({ total: 1, mix: { positive: 0, neutral: 100, negative: 0 }, promoters: 1, detractors: 1, reasons: [], evidence: null, movement: [] }) === null, "bands cannot exceed total");
@@ -100,6 +106,7 @@ const empty = readPulseAggregate({
 });
 expect(empty != null && overviewFromPulse(empty).nps === null, "empty pulse has no nps");
 expect(empty != null && overviewFromPulse(empty).csat === null, "empty pulse has no csat");
+expect(empty != null && interactionsFromPulse(empty).length === 0, "an empty pulse lists no interactions");
 const rated = readPulseAggregate({ ...sample, csat: 2.44 });
 expect(rated?.csat === 2.4, "csat is kept to one decimal");
 expect(rated != null && overviewFromPulse(rated).csat === 2.4, "live overview uses average csat");
@@ -114,14 +121,30 @@ expect(
 
 const home = readFileSync(new URL("../src/app/page.tsx", import.meta.url), "utf8");
 const livePage = readFileSync(new URL("../src/app/live/page.tsx", import.meta.url), "utf8");
+const demoPage = readFileSync(new URL("../src/app/demo/page.tsx", import.meta.url), "utf8");
+const liveInteractionsPage = readFileSync(new URL("../src/app/live/interactions/page.tsx", import.meta.url), "utf8");
+const liveInteractions = readFileSync(new URL("../src/components/LiveInteractions.tsx", import.meta.url), "utf8");
 const overview = readFileSync(new URL("../src/components/Overview.tsx", import.meta.url), "utf8");
 const liveOverview = readFileSync(new URL("../src/components/LiveOverview.tsx", import.meta.url), "utf8");
-expect(home.includes("<Overview") && !home.includes("LiveOverview"), "the main page is the simulated queue");
+const desk = readFileSync(new URL("../src/components/TranscriptDesk.tsx", import.meta.url), "utf8");
+expect(home.includes("<LiveOverview") && !home.includes("<Overview"), "the main page is the live overview");
 expect(livePage.includes("<LiveOverview"), "/live is the scored pulse");
+expect(demoPage.includes("<Overview") && !demoPage.includes("LiveOverview"), "the demo keeps its overview");
+expect(existsSync(fileURLToPath(new URL("../src/app/demo/interactions/page.tsx", import.meta.url))), "the demo keeps its interactions page");
+expect(liveInteractionsPage.includes("<LiveInteractions"), "live interactions is its own page");
+expect(liveInteractions.includes("loadPulseAggregate") && liveInteractions.includes("interactionsFromPulse"), "live interactions reads the pulse");
+expect(!liveInteractions.includes("allRows") && !/whatsapp|gl-1004|Harper/i.test(liveInteractions), "live interactions does not invent demo calls");
+expect(liveInteractions.includes('data-testid="live-interactions-empty"'), "live interactions has an empty state");
 const header = readFileSync(new URL("../src/components/SiteHeader.tsx", import.meta.url), "utf8");
-expect(header.includes('href="/live"') && header.includes("\n            Live\n"), "the header links to Live");
-expect(!existsSync(fileURLToPath(new URL("../src/app/demo/page.tsx", import.meta.url))), "the demo is not a separate route");
-expect(overview.includes('href="/live"') && overview.includes("Open live scores"), "the demo links to live scores");
+expect(header.includes('href: "/", label: "Live"'), "the live menu links Live to home");
+expect(header.includes('href: "/live/interactions", label: "Interactions"'), "the live menu links to live interactions");
+expect(header.includes('href: "/demo", label: "Demo"'), "demo is a separate link");
+expect(header.includes('href: "/scoring", label: "Score model"'), "score model stays with the demo");
+expect(header.includes("const links = demo"), "score model is not on the live menu");
+expect(overview.includes('href="/"') && overview.includes("Open live scores"), "the demo links to live scores");
+expect(overview.includes('"/demo/interactions"'), "demo reasons open the demo interactions");
+expect(desk.includes('href="/demo"') && desk.includes('href="/demo/interactions"'), "the demo desk stays on demo paths");
+expect(liveOverview.includes('href="/demo"') && liveOverview.includes("Open the demo"), "the live page links to the demo");
 expect(liveOverview.includes("loadPulseAggregate"), "the live page loads through the timed helper");
 expect(liveOverview.includes('data-testid="pulse-waiting"'), "the live page has a waiting state");
 expect(liveOverview.includes('data-testid="retry-pulse"'), "the live page has a visible retry");

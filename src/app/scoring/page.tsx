@@ -82,7 +82,7 @@ export default function ScoringPage() {
           Example: Harper Stores says the bill arrived too late to pay, then the payments team sent a demand for payment. That interaction scores at the bottom of NPS and CSAT. Opening it shows the case was already escalated to the customer retentions team to apologize and offer a 1% rebate on the next bill.
         </p>
         <p>
-          <Link href="/interactions/?call=gl-1004" className="card-go">
+          <Link href="/demo/interactions/?call=gl-1004" className="card-go">
             See Harper Stores on the interaction list
           </Link>
         </p>

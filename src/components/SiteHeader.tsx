@@ -1,13 +1,28 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+type Current = "live" | "live-interactions" | "demo" | "demo-interactions" | "scoring";
+
 export function SiteHeader({
   current,
   children,
 }: {
-  current?: "overview" | "live" | "interactions" | "scoring";
+  current?: Current;
   children?: ReactNode;
 }) {
+  const demo = current === "demo" || current === "demo-interactions" || current === "scoring";
+  const links = demo
+    ? [
+        { href: "/demo", label: "Demo", current: current === "demo" },
+        { href: "/demo/interactions", label: "Interactions", current: current === "demo-interactions" },
+        { href: "/scoring", label: "Score model", current: current === "scoring" },
+      ]
+    : [
+        { href: "/", label: "Live", current: current === "live" },
+        { href: "/live/interactions", label: "Interactions", current: current === "live-interactions" },
+      ];
+  const aside = demo ? { href: "/", label: "Live" } : { href: "/demo", label: "Demo" };
+
   return (
     <header className="site-header">
       <Link href="/" className="header-mark">
@@ -21,20 +36,16 @@ export function SiteHeader({
         <small>Customer support</small>
       </Link>
       <div className="header-right">
-        <nav className="site-nav" aria-label="Site">
-          <Link href="/" aria-current={current === "overview" ? "page" : undefined}>
-            Overview
-          </Link>
-          <Link href="/live" aria-current={current === "live" ? "page" : undefined}>
-            Live
-          </Link>
-          <Link href="/interactions" aria-current={current === "interactions" ? "page" : undefined}>
-            Interactions
-          </Link>
-          <Link href="/scoring" aria-current={current === "scoring" ? "page" : undefined}>
-            Score model
-          </Link>
+        <nav className="site-nav" aria-label={demo ? "Demo" : "Live"}>
+          {links.map((link) => (
+            <Link key={link.href} href={link.href} aria-current={link.current ? "page" : undefined}>
+              {link.label}
+            </Link>
+          ))}
         </nav>
+        <span className="nav-aside">
+          <Link href={aside.href}>{aside.label}</Link>
+        </span>
         {children ? <div className="header-slot">{children}</div> : null}
       </div>
     </header>
