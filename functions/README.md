@@ -1,35 +1,55 @@
 # Transcript scoring
 
-A container polls the blob container `incomingtranscripts` and scores each new file with Azure OpenAI in your tenant. It is not part of the static site, and it does not add a page to sorted.trilogybpo.com. Keyword rules are not the live scorer.
+This is the Sorted.ai scorer. Setup for the site, storage account `trilogybpo`, container app `sorted-pulse`, and Azure OpenAI resource `sorted-openai` is in the repository [README](../README.md).
 
-Each transcript is one chat completion. The response is strict JSON: `predicted_nps` (a whole number from 0 to 10), `nps_category` (promoter for 9–10, passive for 7–8, detractor for 0–6), `sentiment_start`, `sentiment_end`, `resolved`, `csat` (1–5), `primary_reason`, an evidence quote, a `summary`, `vulnerable`, `vulnerability_reason`, and `next_step`. The instruction is to judge the whole call and weigh the ending. A booked, paid close is not a detractor. A caller who books and pays after disliking the price or the wait is a promoter at 9 with CSAT 4. A clearly pleased close can be 10 with CSAT 5. An unresolved complaint, refusal, cancellation, or angry ending stays a detractor with CSAT 1 or 2. A genuinely undecided caller is passive with CSAT 3. The evidence quote must be a real sentence copied from the transcript, never a fragment such as “O.” `vulnerable` is true only when the caller has trouble paying, is late on payments, or mentions a change in circumstances that means they cannot pay. Ordinary price dislike is not vulnerable. When it is false, `vulnerability_reason` and `next_step` are empty. When it is true, those two fields are one short reason and one short suggested next step. The same three fields are stored on the `SentimentPulse` record. `GET /api/pulse` returns them as `vulnerable`, a list of those people, so the page does not scan blobs.
+The container polls `incomingtranscripts` every 15 seconds and scores each file with one Azure OpenAI chat completion. The image command is `node dist/container.js`. It listens on port 8080. It is not part of the static site, and it does not add a page to https://sorted.trilogybpo.com. The demo’s keyword rules are a separate desk. They do not score the live pulse.
 
-The deployment must accept chat completions with `response_format` `json_schema` and `strict: true`. API version `2024-10-21` is a known fit for that, on a deployment such as GPT-4o. `sentiment_end` is the sentiment stored for the pulse. `predicted_nps` is stored as `predictedNps`. A survey number already written in the file is stored as `nps`; otherwise `nps` stays null. Speech-recognition `confidence` is not a score. `csatBand` is positive for 4–5, neutral for 3, and negative for 1–2.
+## What gets stored
 
-After a successful score the blob moves to the `processedtranscripts` container, keeping its name. The JSON result is written in that same container as `results/<file>.json`. The same score is also written to the Azure Table `SentimentPulse` in that storage account. That table is the fast store: one row holds the calls behind the pulse. On failure the file stays in `incomingtranscripts` and the error is written beside the result as `results/<file>.error.json`. The process does not create blob containers. It creates the `SentimentPulse` table if it is missing. It does not write Azure SQL.
+Predicted NPS is an estimate, not a survey score. The model returns `predicted_nps`, a whole number from 0 to 10, stored as `predictedNps`. A survey number already written in the file is stored as `nps` and stays null when the file has none. Speech-recognition `confidence` is not a score. `GET /api/pulse` does not return `nps`.
 
-The same container serves `GET /api/pulse`. sorted.trilogybpo.com can call it with no storage key. The response is read from the `SentimentPulse` table in one call: mix, promoter and detractor counts, average `csat`, reasons, one evidence quote, movement, `calls` (each detractor), and `vulnerable` (each person, `vulnerability_reason`, and `next_step`). It does not list result blobs, and it does not call Azure OpenAI. CORS allows only `https://sorted.trilogybpo.com`. `nps` is not in that response. When `processedtranscripts` has no `results/*.json`, the next poll rewrites the `SentimentPulse` record as an empty pulse. When result JSON is present and the table record is missing, that poll copies it in. A written empty pulse is not copied back. `GET /api/pulse` reads only that one table record. It does not list blobs, score files, or wait for the poll. A failed read returns JSON immediately.
+The completion also returns `nps_category` (promoter for 9–10, passive for 7–8, detractor for 0–6), `sentiment_start`, `sentiment_end`, `resolved`, `csat` (1–5), `primary_reason`, an evidence quote, a `summary`, `vulnerable`, `vulnerability_reason`, and `next_step`. The instruction is to judge the whole call and weigh the ending. A booked, paid close is not a detractor. A caller who books and pays after disliking the price or the wait is a promoter at 9 with CSAT 4. A clearly pleased close can be 10 with CSAT 5. An unresolved complaint, refusal, cancellation, or angry ending stays a detractor with CSAT 1 or 2. A genuinely undecided caller is passive with CSAT 3. The evidence quote must be a real sentence copied from the transcript. `vulnerable` is true only when the caller has trouble paying, is late on payments, or mentions a change in circumstances that means they cannot pay. Ordinary price dislike is not vulnerable. When it is false, `vulnerability_reason` and `next_step` are empty. When it is true, those two fields are one short reason and one short suggested next step. The same three fields are stored on the `SentimentPulse` record.
 
-`POST /api/clear-results` is the Clear results button. It deletes `results/*.json`, writes an empty `SentimentPulse` record, and leaves the moved transcript files where they are. The response is that empty pulse. The next poll does not refill the table from the deleted JSON.
+`sentiment_end` is the sentiment stored for the pulse. `csatBand` is positive for 4–5, neutral for 3, and negative for 1–2.
 
-`POST /api/clear-transcripts` is the Clear transcripts button. It deletes every blob in `processedtranscripts`, including the moved transcript files, `results/*.json`, and `results/*.error.json`, then writes an empty `SentimentPulse` record. It does not delete blobs in `incomingtranscripts`, and it does not delete the container. The live page asks for confirmation before it calls this route.
+The deployment must accept chat completions with `response_format` `json_schema` and `strict: true`. One Azure OpenAI resource is enough for NPS, CSAT, and vulnerable-customer scoring. The resource is `sorted-openai`, deployment `sorted-score`, model `gpt-4o`, endpoint `https://sorted-openai.openai.azure.com/`, API version `2024-12-01-preview`. The page at `/live/vulnerable` reads `vulnerable` from `GET /api/pulse`. An older running revision omits that list until a new revision of `sorted-pulse` is deployed.
 
-Settings are environment variables on the container app. Do not commit them. The image does not contain them. Set these five:
+## Files
 
-| Name | What to put |
-| --- | --- |
-| `SORTED_STORAGE_CONNECTION_STRING` | Storage account that holds `incomingtranscripts`, `processedtranscripts`, and the `SentimentPulse` table. |
-| `AZURE_OPENAI_ENDPOINT` | Resource endpoint, such as `https://<name>.openai.azure.com`. No path, query, or key. |
-| `AZURE_OPENAI_API_KEY` | A key for that Azure OpenAI resource. |
-| `AZURE_OPENAI_DEPLOYMENT` | Deployment name to call. |
-| `AZURE_OPENAI_API_VERSION` | API version for that deployment, such as `2024-10-21`. |
+Drop a file in blob container `incomingtranscripts` on storage account `trilogybpo`.
 
-The process reads those variables only, and it listens on port 8080.
+On success the blob moves to `processedtranscripts`, keeping its name. The JSON result is `processedtranscripts/results/<file>.json`. The same score is written to table `SentimentPulse`. On failure the file stays in `incomingtranscripts` for the next poll to retry, and the error is `processedtranscripts/results/<file>.error.json`.
 
-The image build uses the repo root as its context and `functions/Dockerfile`, so it compiles this package with `tsc` and does not run the site build. From the repo root:
+The process does not create the blob containers. It creates `SentimentPulse` if the table is missing. It does not write Azure SQL. A file must be text, non-empty, and at most 2 MB.
+
+## Pulse
+
+The same container serves `GET /api/pulse`. The site calls it with no storage key. The response is that one `SentimentPulse` record: mix, promoter and detractor counts, average `csat`, reasons, one evidence quote, movement, `calls` (each detractor’s file, reason, quote, NPS band, and CSAT), and `vulnerable` (each person, `vulnerability_reason`, and `next_step`). It does not list result blobs, and it does not call Azure OpenAI. CORS allows only `https://sorted.trilogybpo.com`.
+
+When `processedtranscripts` has no `results/*.json`, the next poll rewrites `SentimentPulse` as an empty pulse. When result JSON is present and the table record has never been written, that poll copies it in. A written empty pulse is not copied back. A failed read returns JSON immediately.
+
+`POST /api/clear-results` deletes the score files `results/<file>.json`, writes an empty `SentimentPulse` record, and leaves the moved transcripts and any `results/<file>.error.json` where they are. `POST /api/clear-transcripts` deletes every blob in `processedtranscripts`, including transcripts, result JSON, and error JSON, then writes an empty record. It does not delete `incomingtranscripts` or the blob container.
+
+## Run
+
+The five settings are `SORTED_STORAGE_CONNECTION_STRING`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`, and `AZURE_OPENAI_API_VERSION`. Values for the resources above are in the repository README. Set them on container app `sorted-pulse`. The image `sortedpulse.azurecr.io/sorted-transcripts:latest` does not contain them.
+
+Building that image does not switch the running revision. Create a new revision of `sorted-pulse` after:
 
 ```bash
-docker build -f functions/Dockerfile -t sorted-transcripts .
+az acr build --registry sortedpulse --image sorted-transcripts:latest --file functions/Dockerfile https://github.com/thegreatcornolio/sorted.git#main
 ```
 
-`npm run upload` serves a local page at http://127.0.0.1:8787/. That page is not on sorted.trilogybpo.com. It only puts files in `incomingtranscripts`. The container scores them, and successes move to `processedtranscripts`.
+Locally, from the repository root, `docker build -f functions/Dockerfile -t sorted-transcripts .` compiles this package and does not build the site.
+
+From this directory, with the five variables set (or in gitignored `local.settings.json` under `Values`):
+
+```bash
+npm install
+npm run once    # score incomingtranscripts once
+npm start       # poll and serve the pulse on port 8080
+npm run upload  # http://127.0.0.1:8787/ — puts files in incomingtranscripts only
+npm run check
+```
+
+The upload page is not on sorted.trilogybpo.com.
