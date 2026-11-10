@@ -18,7 +18,7 @@ The deployment must accept chat completions with `response_format` `json_schema`
 
 Drop a file in blob container `incomingtranscripts` on storage account `trilogybpo`.
 
-On success the blob moves to `processedtranscripts`, keeping its name. The JSON result is `processedtranscripts/results/<file>.json`. The same score is written to table `SentimentPulse`. On failure the file stays in `incomingtranscripts` for the next poll to retry, and the error is `processedtranscripts/results/<file>.error.json`.
+On success the blob moves to `processedtranscripts`, keeping its name. The JSON result is `processedtranscripts/results/<file>.json`, including `vulnerable`, `vulnerability_reason`, and `next_step`. The same score is written to table `SentimentPulse`. On failure the file stays in `incomingtranscripts` for the next poll to retry, and the error is `processedtranscripts/results/<file>.error.json`.
 
 The process does not create the blob containers. It creates `SentimentPulse` if the table is missing. It does not write Azure SQL. A file must be text, non-empty, and at most 2 MB.
 
