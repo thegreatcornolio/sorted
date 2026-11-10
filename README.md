@@ -15,7 +15,7 @@ npm run dev
 - Demo interactions: http://localhost:3000/demo/interactions and http://localhost:3000/nadclinic
 - Score model: http://localhost:3000/scoring
 
-`/` is the live pulse. `/live` opens that same page. The live menu is Live and Interactions. Demo is a separate link, and Score model sits with the demo. `/live/interactions` lists the scored files in the pulse. The demo overview and the demo interactions page keep the scripted queue.
+`/` is the live pulse. `/live` opens that same page. The live menu is Live, Interactions, and Vulnerable Customers. Demo is a separate link, and Score model sits with the demo. `/live/interactions` lists the scored files in the pulse. `/live/vulnerable` is the medical inbound list: NPS and CSAT stay, and each vulnerable person is shown with why they were categorised and a suggested next step. The demo overview and the demo interactions page keep the scripted queue.
 
 `/` and `/live` read `GET /api/pulse` on `https://sorted-pulse.thankfulflower-819372b8.westus3.azurecontainerapps.io`, the aggregate of processed transcripts. The page draws immediately, shows a short waiting line, and stops the request after a few seconds with a retry. The Function App origin is the public `baseUrl` in `public/sentiment-pulse-config.json`. The path is `/api/pulse`. A build can set `NEXT_PUBLIC_SENTIMENT_PULSE_BASE_URL` to the same origin. These call transcripts have no channel field, and the page does not add one. The site does not contain a storage key.
 

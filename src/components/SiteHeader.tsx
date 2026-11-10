@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-type Current = "live" | "live-interactions" | "demo" | "demo-interactions" | "scoring";
+type Current = "live" | "live-interactions" | "live-vulnerable" | "demo" | "demo-interactions" | "scoring";
 
 export function SiteHeader({
   current,
@@ -20,6 +20,7 @@ export function SiteHeader({
     : [
         { href: "/", label: "Live", current: current === "live" },
         { href: "/live/interactions", label: "Interactions", current: current === "live-interactions" },
+        { href: "/live/vulnerable", label: "Vulnerable Customers", current: current === "live-vulnerable" },
       ];
   const aside = demo ? { href: "/", label: "Live" } : { href: "/demo", label: "Demo" };
 
