@@ -57,6 +57,8 @@ test("the request asks for strict JSON and judges the whole call", () => {
   assert.match(body.messages[0]?.content ?? "", /late on payments/i);
   assert.match(body.messages[0]?.content ?? "", /change in circumstances/i);
   assert.match(body.messages[0]?.content ?? "", /ordinary price dislike/i);
+  assert.match(body.messages[0]?.content ?? "", /I can't afford that/);
+  assert.match(body.messages[0]?.content ?? "", /can still pay/);
   const properties = body.response_format.json_schema.schema.properties as Record<string, { type: string }>;
   assert.equal(properties.vulnerable?.type, "boolean");
   assert.equal(properties.vulnerability_reason?.type, "string");
@@ -115,6 +117,8 @@ test("a caller who cannot pay is vulnerable, with a reason and a next step", () 
   assert.equal(score.vulnerable, true);
   assert.equal(score.vulnerability_reason, "They lost their job and are two months late, so they cannot pay.");
   assert.equal(score.next_step, "Offer a payment plan and a hardship callback.");
+  assert.equal(score.predicted_nps, 4);
+  assert.equal(score.csat, 2);
   assert.throws(
     () => acceptJudgment({ ...booked, vulnerable: true, vulnerability_reason: "", next_step: "Call them back." }, transcript),
     /reason and a next step/,
@@ -123,6 +127,34 @@ test("a caller who cannot pay is vulnerable, with a reason and a next step", () 
     () => acceptJudgment({ ...booked, vulnerable: true, vulnerability_reason: "They cannot pay.", next_step: "  " }, transcript),
     /reason and a next step/,
   );
+});
+
+test("a caller who cannot afford the service is vulnerable even when the model says no", () => {
+  const quote = "Oh, I can't afford that. If he can't take mine, I can't afford that.";
+  const score = acceptJudgment(
+    {
+      ...booked,
+      predicted_nps: 2,
+      nps_category: "detractor",
+      sentiment_start: "negative",
+      sentiment_end: "negative",
+      resolved: false,
+      csat: 2,
+      primary_reason: "Caller could not afford the suggested service.",
+      evidence: quote,
+      summary: "The caller could not afford the service.",
+      vulnerable: false,
+      vulnerability_reason: "",
+      next_step: "",
+    },
+    quote,
+  );
+  assert.equal(score.predicted_nps, 2);
+  assert.equal(score.nps_category, "detractor");
+  assert.equal(score.csat, 2);
+  assert.equal(score.vulnerable, true);
+  assert.equal(score.vulnerability_reason, "Caller could not afford the suggested service.");
+  assert.match(score.next_step, /payment plan/i);
 });
 
 test("the model JSON is rejected when it disagrees with itself or quotes a fragment", () => {

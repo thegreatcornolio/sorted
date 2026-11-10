@@ -90,6 +90,36 @@ test("only a caller who cannot pay is listed, not a price complaint", () => {
   assert.equal(JSON.stringify(pulse.vulnerable).includes("price"), false);
 });
 
+test("a stored detractor who could not afford the service is listed without a vulnerable flag", () => {
+  const pulse = aggregatePulse([
+    call({
+      file: "fec084c7b04c47cc869867150aee6943_transcript.json",
+      sentiment: "negative",
+      nps: null,
+      npsBand: "detractor",
+      reason: "Caller could not afford the suggested service.",
+      evidence: "Oh, I can't afford that. If he can't take mine, I can't afford that.",
+      scoredAt: "2026-11-10T19:26:57.878Z",
+    }),
+    call({
+      file: "price.json",
+      sentiment: "negative",
+      nps: null,
+      npsBand: "detractor",
+      reason: "They disliked the price",
+      evidence: "That price is far too high.",
+      scoredAt: "2026-11-10T19:00:00.000Z",
+    }),
+  ]);
+  assert.equal(pulse.vulnerable.length, 1);
+  assert.equal(pulse.vulnerable[0]?.file, "fec084c7b04c47cc869867150aee6943_transcript.json");
+  assert.equal(pulse.vulnerable[0]?.vulnerable, true);
+  assert.equal(pulse.vulnerable[0]?.vulnerability_reason, "Caller could not afford the suggested service.");
+  assert.match(pulse.vulnerable[0]?.next_step ?? "", /payment plan/i);
+  assert.equal(pulse.calls.length, 2);
+  assert.equal(pulse.detractors, 2);
+});
+
 test("call results aggregate the pulse without a survey score", () => {
   const pulse = aggregatePulse([
     call({

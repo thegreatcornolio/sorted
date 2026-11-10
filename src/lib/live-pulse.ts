@@ -1,3 +1,4 @@
+import { PAYMENT_TROUBLE_NEXT_STEP, troublePayingReason } from "./payment-trouble";
 import type { PulseView } from "./pulse";
 
 /** Public placeholder until the Function App host is published. Not a storage key. */
@@ -235,7 +236,47 @@ export function readPulseAggregate(value: unknown): PulseAggregate | null {
   ) {
     return null;
   }
-  return { total, mix, promoters, detractors, csat: readCsat(record.csat), reasons, evidence, movement, calls, vulnerable };
+  return {
+    total,
+    mix,
+    promoters,
+    detractors,
+    csat: readCsat(record.csat),
+    reasons,
+    evidence,
+    movement,
+    calls,
+    vulnerable: withTroublePayingCalls(vulnerable, calls),
+  };
+}
+
+function withTroublePayingCalls(rows: VulnerableCustomer[], calls: PulseCall[]): VulnerableCustomer[] {
+  const seen = new Set(rows.map((row) => row.file));
+  const extra: VulnerableCustomer[] = [];
+  for (const call of calls) {
+    if (seen.has(call.file)) continue;
+    const reason = troublePayingReason(call.reason, call.quote);
+    if (!reason) continue;
+    seen.add(call.file);
+    extra.push({
+      person: personFromFile(call.file),
+      file: call.file,
+      vulnerable: true,
+      vulnerability_reason: reason,
+      next_step: PAYMENT_TROUBLE_NEXT_STEP,
+      scoredAt: call.scoredAt,
+    });
+  }
+  if (extra.length === 0) return rows;
+  return [...rows, ...extra].sort(
+    (a, b) => b.scoredAt.localeCompare(a.scoredAt) || a.person.localeCompare(b.person) || a.file.localeCompare(b.file),
+  );
+}
+
+function personFromFile(file: string): string {
+  const base = file.split("/").pop() || file;
+  const stem = base.replace(/\.[^.]+$/, "");
+  return stem || base;
 }
 
 export function overviewFromPulse(pulse: PulseAggregate): LiveOverview {
