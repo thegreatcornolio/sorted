@@ -353,7 +353,8 @@ h1, h2, h3, .brand, .card-title {
   box-shadow: var(--shadow);
 }
 .clear-transcripts {
-  margin-bottom: 14px;
+  margin-top: 0;
+  margin-bottom: 32px;
   padding: 16px;
   background: var(--red-bg);
   border-color: #e4b4b0;
