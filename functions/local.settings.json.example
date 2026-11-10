@@ -3,7 +3,11 @@
   "Values": {
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
     "FUNCTIONS_WORKER_RUNTIME": "node",
-    "SORTED_STORAGE_CONNECTION_STRING": ""
+    "SORTED_STORAGE_CONNECTION_STRING": "",
+    "AZURE_OPENAI_ENDPOINT": "",
+    "AZURE_OPENAI_API_KEY": "",
+    "AZURE_OPENAI_DEPLOYMENT": "",
+    "AZURE_OPENAI_API_VERSION": ""
   },
   "Host": {
     "CORS": "https://sorted.trilogybpo.com",

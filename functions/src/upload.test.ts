@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import type { CallJudgment } from "./openai";
 import { scoreOne } from "./run";
 import { handleUpload, filesFromBody } from "./uploadServer";
 import { uploadFiles, watchTranscript } from "./uploadFiles";
@@ -32,6 +33,34 @@ class MemoryStore implements TranscriptStore {
 }
 
 const now = () => new Date("2026-11-07T10:30:00.000Z");
+
+function refundJudgment(): CallJudgment {
+  return {
+    predicted_nps: 2,
+    nps_category: "detractor",
+    sentiment_start: "negative",
+    sentiment_end: "negative",
+    resolved: false,
+    csat: 1,
+    primary_reason: "The refund never arrived.",
+    evidence: "The refund never arrived.",
+    summary: "The refund was still missing at the end of the call.",
+  };
+}
+
+function pleasedJudgment(): CallJudgment {
+  return {
+    predicted_nps: 10,
+    nps_category: "promoter",
+    sentiment_start: "positive",
+    sentiment_end: "positive",
+    resolved: true,
+    csat: 5,
+    primary_reason: "They were pleased with the call.",
+    evidence: "Really pleased with the call.",
+    summary: "The caller was pleased at the end.",
+  };
+}
 const page = readFileSync(resolve(__dirname, "../upload/index.html"), "utf8");
 
 test("the upload page source has no storage key", () => {
@@ -59,7 +88,15 @@ test("upload only stores the file until the blob trigger scores it", async () =>
     result: null,
   });
 
-  const outcome = await scoreOne(incoming, processed, "harper.txt", incoming.blobs.get("harper.txt")!.body, now);
+  const outcome = await scoreOne(
+    incoming,
+    processed,
+    "harper.txt",
+    incoming.blobs.get("harper.txt")!.body,
+    now,
+    undefined,
+    async () => refundJudgment(),
+  );
   assert.equal(outcome.status, "scored");
   assert.equal(incoming.blobs.has("harper.txt"), false);
   const progress = await watchTranscript(incoming, processed, "harper.txt");
@@ -75,13 +112,21 @@ test("a rejected file is not stored and does not block a good one", async () => 
   const summary = await uploadFiles(incoming, [
     { name: "..", bytes: Buffer.from("Customer: Really pleased."), contentType: "text/plain" },
     { name: "photo.png", bytes: Buffer.from("nope"), contentType: "image/png" },
-    { name: "notes/../call.txt", bytes: Buffer.from("NPS: 9\nCustomer: Really pleased."), contentType: "" },
+    { name: "notes/../call.txt", bytes: Buffer.from("NPS: 9\nCustomer: Really pleased with the call."), contentType: "" },
   ]);
   assert.deepEqual(summary.uploaded, ["call.txt"]);
   assert.equal(summary.rejected.length, 2);
   assert.equal(incoming.blobs.has("call.txt"), true);
   assert.equal(processed.blobs.has("call.txt"), false);
-  const outcome = await scoreOne(incoming, processed, "call.txt", incoming.blobs.get("call.txt")!.body, now);
+  const outcome = await scoreOne(
+    incoming,
+    processed,
+    "call.txt",
+    incoming.blobs.get("call.txt")!.body,
+    now,
+    undefined,
+    async () => pleasedJudgment(),
+  );
   assert.equal(outcome.status, "scored");
   const result = JSON.parse(processed.blobs.get("results/call.txt.json")?.body.toString() ?? "") as { npsBand: string };
   assert.equal(result.npsBand, "promoter");

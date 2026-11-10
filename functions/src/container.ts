@@ -1,5 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { clearStoredScores, clearStoredTranscripts, readStoredScores, scoreIncomingFromEnv } from "./azure";
+import { safeErrorMessage } from "./openai";
 import { pulseHttp } from "./pulse";
 
 export const PULSE_PATH = "/api/pulse";
@@ -43,9 +44,7 @@ export async function pollOnce(): Promise<void> {
 }
 
 export function pollError(error: unknown): string {
-  const message = error instanceof Error && error.message.trim() ? error.message.trim() : "Scoring poll failed.";
-  if (/accountkey|sharedaccesssignature|defaultendpointsprotocol|sig=/i.test(message)) return "Scoring poll failed.";
-  return message;
+  return safeErrorMessage(error, "Scoring poll failed.");
 }
 
 export function listen(port = portFromEnv()): ReturnType<typeof createServer> {

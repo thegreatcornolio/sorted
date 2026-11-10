@@ -1,5 +1,6 @@
 import { RESULTS_PREFIX } from "./layout";
-import { scoreTranscript, type TranscriptScore } from "./score";
+import { judgeTranscript } from "./openai";
+import { scoreTranscript, type TranscriptJudge, type TranscriptScore } from "./score";
 import type { TranscriptStore } from "./store";
 
 export type ScoreSummary = {
@@ -18,6 +19,11 @@ export type ScoredRecord = {
   reason: string | null;
   evidence: string | null;
   company: string | null;
+  predictedNps: number;
+  sentimentStart: TranscriptScore["sentiment"];
+  sentimentEnd: TranscriptScore["sentiment"];
+  resolved: boolean;
+  summary: string;
   scoredAt: string;
 };
 
@@ -26,6 +32,7 @@ export async function scoreIncoming(
   processed: TranscriptStore,
   now: () => Date = () => new Date(),
   onScored?: (record: ScoredRecord) => Promise<void>,
+  judge: TranscriptJudge = judgeTranscript,
 ): Promise<ScoreSummary> {
   const listed = await incoming.list();
   const summary: ScoreSummary = { scored: [], failed: [] };
@@ -38,7 +45,7 @@ export async function scoreIncoming(
       summary.failed.push({ file: blob.name, error: messageOf(error) });
       continue;
     }
-    const outcome = await scoreOne(incoming, processed, blob.name, bytes, now, onScored);
+    const outcome = await scoreOne(incoming, processed, blob.name, bytes, now, onScored, judge);
     if (outcome.status === "scored") summary.scored.push(outcome.file);
     else summary.failed.push({ file: outcome.file, error: outcome.error });
   }
@@ -52,6 +59,7 @@ export async function scoreOne(
   bytes: Buffer,
   now: () => Date = () => new Date(),
   onScored?: (record: ScoredRecord) => Promise<void>,
+  judge: TranscriptJudge = judgeTranscript,
 ): Promise<{ status: "scored"; file: string } | { status: "failed"; file: string; error: string }> {
   let safe: string;
   try {
@@ -62,7 +70,7 @@ export async function scoreOne(
   const resultName = `${RESULTS_PREFIX}${safe}.json`;
   const errorName = `${RESULTS_PREFIX}${safe}.error.json`;
   try {
-    const score = scoreTranscript(safe, bytes);
+    const score = await scoreTranscript(safe, bytes, judge);
     const record = resultBody(score, now().toISOString());
     await processed.write(resultName, jsonBuffer(record), "application/json; charset=utf-8");
     if (onScored) await onScored(record);
@@ -103,6 +111,11 @@ function resultBody(score: TranscriptScore, scoredAt: string): ScoredRecord {
     reason: score.reason,
     evidence: score.evidence,
     company: score.company,
+    predictedNps: score.predictedNps,
+    sentimentStart: score.sentimentStart,
+    sentimentEnd: score.sentimentEnd,
+    resolved: score.resolved,
+    summary: score.summary,
     scoredAt,
   };
 }
