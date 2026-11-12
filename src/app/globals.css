@@ -300,8 +300,16 @@ h1, h2, h3, .brand, .card-title {
   border-radius: 14px;
   background: #fff;
   padding: 14px 16px;
+  min-width: 0;
 }
-.vulnerable-card h3 { margin: 0; font-size: 1.05rem; }
+.vulnerable-card h3,
+.vulnerable-card .meta {
+  margin: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.vulnerable-card h3 { font-size: 1.05rem; }
+.vulnerable-card .meta { margin-top: 2px; }
 .vulnerable-fields { display: grid; gap: 12px; margin: 12px 0 0; }
 .vulnerable-fields div { display: grid; gap: 2px; }
 .vulnerable-fields dt {
@@ -542,9 +550,23 @@ mark { background: #f6efb6; padding: 0 2px; }
     transform: none;
     flex: 1 1 auto;
     align-items: center;
+    min-width: 0;
   }
-  .header-right { width: 100%; margin-left: 0; flex-wrap: wrap; }
-  .header-slot { width: 100%; justify-content: space-between; }
+  .header-mark { min-width: 0; }
+  .header-mark img { max-width: min(148px, 42vw); }
+  .header-right {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    width: 100%;
+    margin-left: 0;
+    gap: 8px 12px;
+  }
+  .site-nav { grid-column: 1 / -1; min-width: 0; max-width: 100%; }
+  .site-nav a,
+  .nav-aside a { white-space: nowrap; }
+  .nav-aside { margin-left: 0; justify-self: start; padding-left: 0; border-left: 0; }
+  .header-slot { width: auto; max-width: 100%; min-width: 0; justify-self: end; justify-content: flex-end; }
   .score-grid { grid-template-columns: 1fr; }
 }
 

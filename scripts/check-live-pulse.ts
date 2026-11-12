@@ -252,6 +252,10 @@ expect(!/listBlobs|incomingtranscripts|processedtranscripts/.test(vulnerableCust
 expect(header.includes('href: "/demo", label: "Demo"'), "demo is a separate link");
 expect(header.includes('href: "/scoring", label: "Score model"'), "score model stays with the demo");
 expect(header.includes("const links = demo"), "score model is not on the live menu");
+const css = readFileSync(new URL("../src/app/globals.css", import.meta.url), "utf8");
+expect(css.includes(".site-nav { grid-column: 1 / -1;"), "narrow live links wrap on their own row");
+expect(css.includes(".nav-aside { margin-left: 0; justify-self: start;"), "Demo stays separate from the live links");
+expect(css.includes(".vulnerable-card h3,") && css.includes("overflow-wrap: anywhere;"), "a long file id wraps inside the card");
 expect(overview.includes('href="/"') && overview.includes("Open live scores"), "the demo links to live scores");
 expect(overview.includes('"/demo/interactions"'), "demo reasons open the demo interactions");
 expect(desk.includes('href="/demo"') && desk.includes('href="/demo/interactions"'), "the demo desk stays on demo paths");
