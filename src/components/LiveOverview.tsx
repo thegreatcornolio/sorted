@@ -138,9 +138,6 @@ export function LiveOverview() {
             <div className="intro-row">
               <h1>Customer interactions support</h1>
               <span className="intro-actions">
-                <button type="button" className="text-button" onClick={clearResults} disabled={clearing} data-testid="clear-results">
-                  {clearing ? "Clearing results" : "Clear results"}
-                </button>
                 <Link href="/demo" className="text-button" data-testid="open-demo">
                   Open the demo
                 </Link>
@@ -232,8 +229,13 @@ export function LiveOverview() {
               </ol>
             )}
           </section>
-          <section className="panel clear-transcripts" aria-label="Clear transcripts" data-testid="clear-transcripts">
-            <h2>Clear transcripts</h2>
+          <section className="panel clear-transcripts" aria-label="Clear stored scores" data-testid="clear-transcripts">
+            <h2>Clear results</h2>
+            <p>Deletes the scored results and empties the live pulse. The stored transcripts stay in place.</p>
+            <button type="button" className="text-button" onClick={clearResults} disabled={clearing || deletingTranscripts} data-testid="clear-results">
+              {clearing ? "Clearing results" : "Clear results"}
+            </button>
+            <h2 className="clear-follow">Clear transcripts</h2>
             <p>
               Deletes every file in processedtranscripts: the moved call transcripts, the result JSON, and the error JSON. It also
               writes an empty score record. Files still in incomingtranscripts are left in place.

@@ -168,6 +168,6 @@ npm run once
 
 ## Clear the pulse
 
-`POST /api/clear-results` is the Clear results button. It deletes the score files `results/<file>.json`, writes an empty `SentimentPulse` record, and leaves the moved transcript files and any `results/<file>.error.json` in `processedtranscripts`. The next poll does not refill the table from the deleted JSON.
+`POST /api/clear-results` is the Clear results button at the bottom of the live page, in the same caution panel as Clear transcripts. It deletes the score files `results/<file>.json`, writes an empty `SentimentPulse` record, and leaves the moved transcript files and any `results/<file>.error.json` in `processedtranscripts`. The next poll does not refill the table from the deleted JSON.
 
 `POST /api/clear-transcripts` is the Clear transcripts button at the bottom of the home pulse. It deletes every blob in `processedtranscripts`, including the moved transcripts, `results/*.json`, and `results/*.error.json`, then writes an empty `SentimentPulse` record. It leaves `incomingtranscripts` in place, and it does not delete the blob container. The page asks for confirmation first.
