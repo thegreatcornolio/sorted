@@ -386,6 +386,7 @@ h1, h2, h3, .brand, .card-title {
   border-color: #e4b4b0;
 }
 .clear-transcripts h2 { margin: 0 0 6px; font-size: 1.15rem; }
+.clear-transcripts .clear-follow { margin-top: 22px; }
 .clear-transcripts p { margin: 0 0 12px; }
 .text-button.is-danger { background: var(--red); color: #fff; border-color: var(--red); }
 .panel-head {
