@@ -320,6 +320,40 @@ h1, h2, h3, .brand, .card-title {
   color: var(--green);
 }
 .vulnerable-fields dd { margin: 0; }
+.agent-lists { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.agent-desk .actions {
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+}
+.agent-desk .feed-hit { overflow-wrap: anywhere; word-break: break-word; }
+.agent-desk .feed-hit .eyebrow { display: block; margin-top: 10px; }
+.feed-hit.is-selected { border-color: var(--green); background: #f3f7f4; }
+.agent-fields { margin: 4px 16px 16px; }
+.agent-choice { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 16px 16px; }
+.agent-choice .text-button[aria-pressed="false"] {
+  background: #fff;
+  color: var(--navy);
+  border: 1px solid var(--line);
+}
+.draft, .call-panel { margin: 0 16px 16px; }
+.draft-subject { margin: 8px 0 0; }
+.draft-body {
+  white-space: pre-wrap;
+  margin: 10px 0 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+.draft .text-button, .call-panel .text-button { margin-top: 12px; }
+.call-panel p { margin: 0; }
+.call-number {
+  margin: 8px 0;
+  font-family: var(--mono);
+  font-size: 1.4rem;
+  font-weight: 600;
+}
 .score-row {
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);
@@ -544,6 +578,7 @@ mark { background: #f6efb6; padding: 0 2px; }
   .card-grid, .desk-grid, .kpis, .score-row, .summary-grid { grid-template-columns: 1fr; }
   .kpis { grid-template-columns: 1fr 1fr; }
   .actions { position: static; order: -1; }
+  .agent-desk .actions { order: 0; max-height: none; overflow: visible; }
   .desk-grid { display: flex; flex-direction: column; }
   .site-header { display: flex; flex-wrap: wrap; row-gap: 8px; }
   .site-header .brand {
