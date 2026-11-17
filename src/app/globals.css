@@ -321,6 +321,22 @@ h1, h2, h3, .brand, .card-title {
 }
 .vulnerable-fields dd { margin: 0; }
 .agent-lists { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.agent-count-panel { margin-bottom: 16px; }
+.agent-graphs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 28px;
+  padding: 4px 16px 16px;
+}
+.agent-graphs h3 { margin: 10px 0 8px; font-size: 0.95rem; }
+.agent-graphs .topic { margin-bottom: 10px; }
+.bar-track span.is-vulnerable { background: var(--navy); }
+.bar-track span.is-attention { background: #c4922a; }
+.bar-track span.is-engaging { background: var(--green); }
+.bar-track span.is-completed { background: #1d4e89; }
+.bar-track span.is-saved { background: var(--green); }
+.bar-track span.is-lost { background: var(--red); }
+.bar-track span.is-no-answer { background: #c4922a; }
 .agent-desk .actions {
   max-height: calc(100vh - 32px);
   overflow: auto;
@@ -575,7 +591,7 @@ mark { background: #f6efb6; padding: 0 2px; }
 .table th { background: var(--navy); color: white; font-weight: 600; }
 
 @media (max-width: 860px) {
-  .card-grid, .desk-grid, .kpis, .score-row, .summary-grid { grid-template-columns: 1fr; }
+  .card-grid, .desk-grid, .kpis, .score-row, .summary-grid, .agent-graphs { grid-template-columns: 1fr; }
   .kpis { grid-template-columns: 1fr 1fr; }
   .actions { position: static; order: -1; }
   .agent-desk .actions { order: 0; max-height: none; overflow: visible; }

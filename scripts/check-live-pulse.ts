@@ -15,12 +15,16 @@ import {
   type VulnerableCustomer,
 } from "../src/lib/live-pulse";
 import {
+  completeFollowUp,
+  deskCounts,
   deskPeople,
   engage,
   followUpEmail,
   readEngaging,
+  setFollowUpOutcome,
   splitDesk,
   writeEngaging,
+  ENGAGING_STORAGE_KEY,
 } from "../src/lib/vulnerable-desk";
 
 const failures: string[] = [];
@@ -250,8 +254,8 @@ expect(header.includes('href: "/", label: "Live"'), "the live menu links Live to
 expect(header.includes('href: "/live/interactions", label: "Interactions"'), "the live menu links to live interactions");
 expect(header.includes('href: "/live/vulnerable", label: "Vulnerable Customers"'), "the live menu links to vulnerable customers");
 expect(
-  header.includes('href: "/live/vulnerable-customer", label: "Vulnerable Customer"'),
-  "the live menu links to the agent desk",
+  header.includes('href: "/live/vulnerable-customer", label: "Agent desktop"'),
+  "the live menu calls the desk Agent desktop",
 );
 const vulnerablePage = readFileSync(new URL("../src/app/live/vulnerable/page.tsx", import.meta.url), "utf8");
 const vulnerableCustomers = readFileSync(new URL("../src/components/VulnerableCustomers.tsx", import.meta.url), "utf8");
@@ -265,7 +269,16 @@ expect(!/listBlobs|incomingtranscripts|processedtranscripts/.test(vulnerableCust
 const vulnerableCustomerPage = readFileSync(new URL("../src/app/live/vulnerable-customer/page.tsx", import.meta.url), "utf8");
 const vulnerableCustomerDesk = readFileSync(new URL("../src/components/VulnerableCustomerDesk.tsx", import.meta.url), "utf8");
 expect(vulnerableCustomerPage.includes("<VulnerableCustomerDesk"), "the agent desk is its own page");
-expect(vulnerableCustomerPage.includes("Vulnerable Customer"), "the agent desk is titled Vulnerable Customer");
+expect(vulnerableCustomerPage.includes("Agent desktop"), "the agent desk is titled Agent desktop");
+expect(vulnerableCustomerDesk.includes("<h1>Agent desktop</h1>"), "the desk heading is Agent desktop");
+expect(vulnerableCustomerDesk.includes('testId="count-vulnerable"'), "the desk graphs vulnerable customers");
+expect(vulnerableCustomerDesk.includes('testId="count-attention"'), "the desk graphs people needing attention");
+expect(vulnerableCustomerDesk.includes('testId="count-engaging"'), "the desk graphs engaging");
+expect(vulnerableCustomerDesk.includes('testId="count-completed"'), "the desk graphs completed");
+expect(vulnerableCustomerDesk.includes('testId="count-saved"'), "the desk graphs saved");
+expect(vulnerableCustomerDesk.includes('testId="count-lost"'), "the desk graphs lost");
+expect(vulnerableCustomerDesk.includes('testId="count-no-answer"'), "the desk graphs no answer");
+expect(vulnerableCustomerDesk.includes("Mark completed"), "an engaging person can be marked completed");
 expect(vulnerableCustomerDesk.includes("loadPulseAggregate"), "the agent desk reads the pulse");
 expect(vulnerableCustomerDesk.includes("followUpEmail"), "email is filled from the selected person");
 expect(vulnerableCustomerDesk.includes("Click to email"), "email is a desk button");
@@ -333,6 +346,26 @@ expect(readEngaging(memory)[0]?.channel === "email", "a refresh reads the same e
 const split = splitDesk(deskRows, readEngaging(memory));
 expect(split.queue.length === 1 && split.queue[0]?.label === "North Clinic", "email removes that person from the queue");
 expect(split.engaging.length === 1 && split.engaging[0]?.label === "Customer 1", "email shows them in Engaging");
+expect(split.completed.length === 0, "a new follow-up is not completed");
+const counted = deskCounts(split);
+expect(counted.vulnerable === 2 && counted.attention === 1 && counted.engaging === 1 && counted.completed === 0, "the bars count the live list");
+expect(counted.saved === 0 && counted.lost === 0 && counted.noAnswer === 0, "a new follow-up has no outcome");
+const withSaved = setFollowUpOutcome(readEngaging(memory), deskRows[0].file, "saved");
+const savedLists = splitDesk(deskRows, withSaved);
+expect(deskCounts(savedLists).saved === 1 && savedLists.engaging.length === 1, "Saved can be set while engaging");
+const finished = completeFollowUp(withSaved, deskRows[0].file);
+writeEngaging(memory, finished);
+const after = splitDesk(deskRows, readEngaging(memory));
+expect(after.engaging.length === 0 && after.completed[0]?.label === "Customer 1", "completed leaves Engaging");
+expect(after.completed[0]?.outcome === "saved" && deskCounts(after).completed === 1, "completed keeps the outcome");
+const lost = setFollowUpOutcome(finished, deskRows[0].file, "lost");
+expect(deskCounts(splitDesk(deskRows, lost)).lost === 1 && deskCounts(splitDesk(deskRows, lost)).saved === 0, "the outcome can change");
+memory.setItem(
+  ENGAGING_STORAGE_KEY,
+  JSON.stringify([{ file: deskRows[0].file, channel: "call", movedAt: "2026-11-16T12:00:00.000Z" }]),
+);
+const legacy = readEngaging(memory);
+expect(legacy[0]?.phase === "engaging" && legacy[0]?.outcome === null, "an older engaging record stays engaging");
 expect(readEngaging({ getItem: () => "not json" }).length === 0, "a bad engaging record is ignored");
 expect(header.includes('href: "/demo", label: "Demo"'), "demo is a separate link");
 expect(header.includes('href: "/scoring", label: "Score model"'), "score model stays with the demo");

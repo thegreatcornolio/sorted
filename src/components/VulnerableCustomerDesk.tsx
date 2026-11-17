@@ -9,13 +9,18 @@ import {
   type PulseAggregate,
 } from "@/lib/live-pulse";
 import {
+  completeFollowUp,
+  countShare,
+  deskCounts,
   deskPeople,
   engage,
   followUpEmail,
   readEngaging,
+  setFollowUpOutcome,
   splitDesk,
   writeEngaging,
   type DeskChannel,
+  type DeskOutcome,
   type EngagingEntry,
   type EngagingPerson,
 } from "@/lib/vulnerable-desk";
@@ -36,8 +41,18 @@ const BLANK_PULSE: PulseAggregate = {
 
 type Phase = "waiting" | "ready" | "error";
 
-function isEngagingPerson(person: { file: string } & { channel?: DeskChannel }): person is EngagingPerson {
-  return person.channel === "call" || person.channel === "email";
+function isFollowUp(person: { file: string } & { phase?: EngagingPerson["phase"] }): person is EngagingPerson {
+  return person.phase === "engaging" || person.phase === "completed";
+}
+
+const OUTCOME_CHOICES: { id: DeskOutcome; label: string }[] = [
+  { id: "saved", label: "Saved" },
+  { id: "lost", label: "Lost" },
+  { id: "no_answer", label: "No answer" },
+];
+
+function outcomeLabel(outcome: DeskOutcome | null): string | null {
+  return OUTCOME_CHOICES.find((choice) => choice.id === outcome)?.label ?? null;
 }
 
 export function VulnerableCustomerDesk() {
@@ -93,9 +108,11 @@ export function VulnerableCustomerDesk() {
 
   const people = useMemo(() => (phase === "ready" ? deskPeople(pulse.vulnerable) : []), [phase, pulse]);
   const listed = useMemo(() => splitDesk(people, storageReady ? engaging : []), [people, engaging, storageReady]);
+  const counts = useMemo(() => deskCounts(listed), [listed]);
   const selected =
     listed.queue.find((person) => person.file === selectedFile) ??
     listed.engaging.find((person) => person.file === selectedFile) ??
+    listed.completed.find((person) => person.file === selectedFile) ??
     null;
   const draft = selected ? followUpEmail(selected) : null;
   const listsReady = phase === "ready" && storageReady;
@@ -110,16 +127,31 @@ export function VulnerableCustomerDesk() {
     setMode(null);
   }
 
-  function move(channel: DeskChannel) {
-    if (!selected || isEngagingPerson(selected)) return;
-    const next = engage(engaging, {
-      file: selected.file,
-      channel,
-      movedAt: new Date().toISOString(),
-    });
+  function save(next: EngagingEntry[]) {
     setEngaging(next);
     writeEngaging(window.localStorage, next);
+  }
+
+  function move(channel: DeskChannel) {
+    if (!selected || isFollowUp(selected)) return;
+    save(
+      engage(engaging, {
+        file: selected.file,
+        channel,
+        movedAt: new Date().toISOString(),
+      }),
+    );
     setMode(null);
+  }
+
+  function markCompleted() {
+    if (!selected || !isFollowUp(selected) || selected.phase !== "engaging") return;
+    save(completeFollowUp(engaging, selected.file));
+  }
+
+  function chooseOutcome(outcome: DeskOutcome) {
+    if (!selected || !isFollowUp(selected)) return;
+    save(setFollowUpOutcome(engaging, selected.file, outcome));
   }
 
   const status =
@@ -143,11 +175,11 @@ export function VulnerableCustomerDesk() {
         <div className="wrap">
           <div className="desk-intro">
             <p className="kicker">Agent desk · medical inbound</p>
-            <h1>Vulnerable Customer</h1>
+            <h1>Agent desktop</h1>
             <p>
               Follow up after Sorted flags someone. The queue is the{" "}
               <Link href="/live/vulnerable">Vulnerable Customers</Link> list. Choose a person, then call or email.
-              Neither action leaves this browser. Engaging stays in this browser after a refresh.
+              Neither action leaves this browser. Phase and outcome stay in this browser after a refresh.
             </p>
             {phase === "waiting" ? (
               <p className="status-line" data-testid="pulse-waiting">
@@ -163,6 +195,31 @@ export function VulnerableCustomerDesk() {
               </div>
             ) : null}
           </div>
+          <section className="panel agent-count-panel" aria-label="Desk counts" data-testid="agent-counts">
+            <div className="panel-head">
+              <h2>Desk</h2>
+              <p>{listsReady ? `${counts.vulnerable} vulnerable` : "Live pulse"}</p>
+            </div>
+            {listsReady ? (
+              <div className="agent-graphs">
+                <div>
+                  <h3>Follow-up</h3>
+                  <CountBar testId="count-vulnerable" label="Vulnerable customers" count={counts.vulnerable} total={counts.vulnerable} tone="is-vulnerable" />
+                  <CountBar testId="count-attention" label="Needing attention" count={counts.attention} total={counts.vulnerable} tone="is-attention" />
+                  <CountBar testId="count-engaging" label="Engaging" count={counts.engaging} total={counts.vulnerable} tone="is-engaging" />
+                  <CountBar testId="count-completed" label="Completed" count={counts.completed} total={counts.vulnerable} tone="is-completed" />
+                </div>
+                <div>
+                  <h3>Outcomes</h3>
+                  <CountBar testId="count-saved" label="Saved" count={counts.saved} total={counts.vulnerable} tone="is-saved" />
+                  <CountBar testId="count-lost" label="Lost" count={counts.lost} total={counts.vulnerable} tone="is-lost" />
+                  <CountBar testId="count-no-answer" label="No answer" count={counts.noAnswer} total={counts.vulnerable} tone="is-no-answer" />
+                </div>
+              </div>
+            ) : (
+              <p className="empty">Counts appear with the live list.</p>
+            )}
+          </section>
           <div className="desk-grid">
             <div className="agent-lists">
               <section className="panel" aria-label="Queue" data-testid="agent-queue">
@@ -177,7 +234,7 @@ export function VulnerableCustomerDesk() {
                     <p className="empty" data-testid="agent-queue-empty">
                       {people.length === 0
                         ? "No vulnerable customers yet. A person appears here when the live list has someone to follow up."
-                        : "Everyone on the live list is in Engaging."}
+                        : "Everyone on the live list is engaging or completed."}
                     </p>
                   ) : null}
                   {listsReady
@@ -236,9 +293,48 @@ export function VulnerableCustomerDesk() {
                           <strong>{person.label}</strong>
                           <span className="row-tags">
                             <span className="tag pos">{person.channel === "email" ? "Email" : "Call"}</span>
+                            {outcomeLabel(person.outcome) ? <span className="tag">{outcomeLabel(person.outcome)}</span> : null}
                           </span>
                           <span className="meta">Engaging · {movementLabel(person.movedAt)}</span>
                           <span className="meta">Identified {movementLabel(person.scoredAt)}</span>
+                          <span className="eyebrow">Why they were categorised</span>
+                          <span className="reason-copy">{person.vulnerability_reason}</span>
+                          <span className="eyebrow">Suggested next step</span>
+                          <span className="reason-copy">{person.next_step}</span>
+                        </button>
+                      ))
+                    : null}
+                </div>
+              </section>
+              <section className="panel reason-panel" aria-label="Completed" data-testid="agent-completed">
+                <div className="panel-head">
+                  <h2>Completed</h2>
+                  <p aria-live="polite">{listsReady ? `${listed.completed.length} finished` : "This browser"}</p>
+                </div>
+                <div className="feed">
+                  {listsReady && listed.completed.length === 0 ? (
+                    <p className="empty" data-testid="agent-completed-empty">
+                      No one is completed yet. Mark someone completed after a call or email.
+                    </p>
+                  ) : null}
+                  {listsReady
+                    ? listed.completed.map((person) => (
+                        <button
+                          key={person.file}
+                          type="button"
+                          className={selectedFile === person.file ? "feed-hit is-selected" : "feed-hit"}
+                          aria-pressed={selectedFile === person.file}
+                          data-testid="agent-completed-person"
+                          data-file={person.file}
+                          data-outcome={person.outcome ?? ""}
+                          onClick={() => select(person.file)}
+                        >
+                          <strong>{person.label}</strong>
+                          <span className="row-tags">
+                            <span className="tag">{person.channel === "email" ? "Email" : "Call"}</span>
+                            {outcomeLabel(person.outcome) ? <span className="tag pos">{outcomeLabel(person.outcome)}</span> : null}
+                          </span>
+                          <span className="meta">Completed · {movementLabel(person.movedAt)}</span>
                           <span className="eyebrow">Why they were categorised</span>
                           <span className="reason-copy">{person.vulnerability_reason}</span>
                           <span className="eyebrow">Suggested next step</span>
@@ -252,7 +348,15 @@ export function VulnerableCustomerDesk() {
             <aside className="panel actions" aria-label="Follow-up">
               <div className="panel-head">
                 <h2>{selected ? selected.label : "Follow-up"}</h2>
-                <p>{selected ? (isEngagingPerson(selected) ? "Engaging" : "Selected") : "Choose a person"}</p>
+                <p>
+                  {selected
+                    ? isFollowUp(selected)
+                      ? selected.phase === "completed"
+                        ? "Completed"
+                        : "Engaging"
+                      : "Selected"
+                    : "Choose a person"}
+                </p>
               </div>
               {!selected ? (
                 <p className="empty" data-testid="agent-follow-up-empty">
@@ -283,13 +387,36 @@ export function VulnerableCustomerDesk() {
                       <dd>{selected.next_step}</dd>
                     </div>
                   </dl>
-                  {isEngagingPerson(selected) ? (
-                    <p className="empty" data-testid="engaging-note">
-                      {selected.label} is in Engaging
-                      {selected.channel === "email"
-                        ? " after a dummy email. No message was sent."
-                        : " after a dummy call. No call was placed."}
-                    </p>
+                  {isFollowUp(selected) ? (
+                    <>
+                      <p className="empty" data-testid="engaging-note">
+                        {selected.label} is {selected.phase === "completed" ? "completed" : "in Engaging"}
+                        {selected.channel === "email"
+                          ? " after a dummy email. No message was sent."
+                          : " after a dummy call. No call was placed."}
+                      </p>
+                      <div className="agent-choice" data-testid="outcome-choice">
+                        {OUTCOME_CHOICES.map((choice) => (
+                          <button
+                            key={choice.id}
+                            type="button"
+                            className="text-button"
+                            aria-pressed={selected.outcome === choice.id}
+                            data-testid={`outcome-${choice.id}`}
+                            onClick={() => chooseOutcome(choice.id)}
+                          >
+                            {choice.label}
+                          </button>
+                        ))}
+                      </div>
+                      {selected.phase === "engaging" ? (
+                        <div className="agent-choice">
+                          <button type="button" className="text-button" data-testid="mark-completed" onClick={markCompleted}>
+                            Mark completed
+                          </button>
+                        </div>
+                      ) : null}
+                    </>
                   ) : (
                     <>
                       <div className="agent-choice">
@@ -356,5 +483,32 @@ export function VulnerableCustomerDesk() {
         </div>
       </main>
     </>
+  );
+}
+
+function CountBar({
+  testId,
+  label,
+  count,
+  total,
+  tone,
+}: {
+  testId: string;
+  label: string;
+  count: number;
+  total: number;
+  tone: string;
+}) {
+  const width = countShare(count, total);
+  return (
+    <div className="topic">
+      <div className="topic-row">
+        <span>{label}</span>
+        <strong data-testid={testId}>{count}</strong>
+      </div>
+      <div className="bar-track" aria-hidden="true">
+        <span className={tone} style={{ width: `${width}%` }} />
+      </div>
+    </div>
   );
 }
