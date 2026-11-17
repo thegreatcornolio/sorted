@@ -5,10 +5,16 @@ export const ENGAGING_STORAGE_KEY = "sorted-vulnerable-customer-engaging";
 
 export type DeskChannel = "call" | "email";
 
+export type FollowPhase = "engaging" | "completed";
+
+export type DeskOutcome = "saved" | "lost" | "no_answer";
+
 export type EngagingEntry = {
   file: string;
   channel: DeskChannel;
   movedAt: string;
+  phase: FollowPhase;
+  outcome: DeskOutcome | null;
 };
 
 export type DeskPerson = VulnerableCustomer & {
@@ -18,6 +24,24 @@ export type DeskPerson = VulnerableCustomer & {
 };
 
 export type EngagingPerson = DeskPerson & EngagingEntry;
+
+export type DeskLists = {
+  queue: DeskPerson[];
+  engaging: EngagingPerson[];
+  completed: EngagingPerson[];
+};
+
+export type DeskCounts = {
+  vulnerable: number;
+  attention: number;
+  engaging: number;
+  completed: number;
+  saved: number;
+  lost: number;
+  noAnswer: number;
+};
+
+const OUTCOMES = new Set<DeskOutcome>(["saved", "lost", "no_answer"]);
 
 export function dummyEmail(slot: number): string {
   return `customer${slot}@example.com`;
@@ -92,8 +116,15 @@ export function readEngaging(storage: Pick<Storage, "getItem">): EngagingEntry[]
       const file = typeof record.file === "string" ? record.file.trim() : "";
       const channel = record.channel === "call" || record.channel === "email" ? record.channel : null;
       const movedAt = typeof record.movedAt === "string" ? record.movedAt : "";
+      const outcome = typeof record.outcome === "string" && OUTCOMES.has(record.outcome as DeskOutcome) ? (record.outcome as DeskOutcome) : null;
       if (!file || !channel) continue;
-      entries.push({ file, channel, movedAt });
+      entries.push({
+        file,
+        channel,
+        movedAt,
+        phase: record.phase === "completed" ? "completed" : "engaging",
+        outcome,
+      });
     }
     return entries;
   } catch {
@@ -110,24 +141,66 @@ export function writeEngaging(storage: Pick<Storage, "setItem">, entries: Engagi
   }
 }
 
-export function engage(entries: EngagingEntry[], entry: EngagingEntry): EngagingEntry[] {
-  return [...entries.filter((item) => item.file !== entry.file), entry];
+export function engage(
+  entries: EngagingEntry[],
+  entry: Pick<EngagingEntry, "file" | "channel" | "movedAt"> & Partial<Pick<EngagingEntry, "phase" | "outcome">>,
+): EngagingEntry[] {
+  const next: EngagingEntry = {
+    file: entry.file,
+    channel: entry.channel,
+    movedAt: entry.movedAt,
+    phase: entry.phase === "completed" ? "completed" : "engaging",
+    outcome: entry.outcome ?? null,
+  };
+  return [...entries.filter((item) => item.file !== next.file), next];
 }
 
-export function splitDesk(people: DeskPerson[], entries: EngagingEntry[]): {
-  queue: DeskPerson[];
-  engaging: EngagingPerson[];
-} {
+export function completeFollowUp(entries: EngagingEntry[], file: string): EngagingEntry[] {
+  return entries.map((entry) => (entry.file === file ? { ...entry, phase: "completed" } : entry));
+}
+
+export function setFollowUpOutcome(entries: EngagingEntry[], file: string, outcome: DeskOutcome): EngagingEntry[] {
+  return entries.map((entry) => (entry.file === file && entry.phase !== undefined ? { ...entry, outcome } : entry));
+}
+
+export function splitDesk(people: DeskPerson[], entries: EngagingEntry[]): DeskLists {
   const byFile = new Map(entries.map((entry) => [entry.file, entry]));
   const queue: DeskPerson[] = [];
   const engaging: EngagingPerson[] = [];
+  const completed: EngagingPerson[] = [];
   for (const person of people) {
     const entry = byFile.get(person.file);
-    if (entry) engaging.push({ ...person, ...entry, file: person.file });
-    else queue.push(person);
+    if (!entry) {
+      queue.push(person);
+      continue;
+    }
+    const row: EngagingPerson = { ...person, ...entry, file: person.file };
+    if (entry.phase === "completed") completed.push(row);
+    else engaging.push(row);
   }
-  engaging.sort((a, b) => b.movedAt.localeCompare(a.movedAt) || a.label.localeCompare(b.label));
-  return { queue, engaging };
+  const byRecent = (a: EngagingPerson, b: EngagingPerson) => b.movedAt.localeCompare(a.movedAt) || a.label.localeCompare(b.label);
+  engaging.sort(byRecent);
+  completed.sort(byRecent);
+  return { queue, engaging, completed };
+}
+
+export function deskCounts(lists: DeskLists): DeskCounts {
+  const tracked = [...lists.engaging, ...lists.completed];
+  return {
+    vulnerable: lists.queue.length + tracked.length,
+    attention: lists.queue.length,
+    engaging: lists.engaging.length,
+    completed: lists.completed.length,
+    saved: tracked.filter((person) => person.outcome === "saved").length,
+    lost: tracked.filter((person) => person.outcome === "lost").length,
+    noAnswer: tracked.filter((person) => person.outcome === "no_answer").length,
+  };
+}
+
+/** Bar length against the vulnerable total, so an empty desk draws no bar. */
+export function countShare(count: number, total: number): number {
+  if (count <= 0 || total <= 0) return 0;
+  return Math.round((count / total) * 100);
 }
 
 function voice(text: string): string {

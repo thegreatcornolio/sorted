@@ -21,7 +21,7 @@ export function SiteHeader({
         { href: "/", label: "Live", current: current === "live" },
         { href: "/live/interactions", label: "Interactions", current: current === "live-interactions" },
         { href: "/live/vulnerable", label: "Vulnerable Customers", current: current === "live-vulnerable" },
-        { href: "/live/vulnerable-customer", label: "Vulnerable Customer", current: current === "live-vulnerable-customer" },
+        { href: "/live/vulnerable-customer", label: "Agent desktop", current: current === "live-vulnerable-customer" },
       ];
   const aside = demo ? { href: "/", label: "Live" } : { href: "/demo", label: "Demo" };
 
