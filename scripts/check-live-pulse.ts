@@ -12,7 +12,16 @@ import {
   readPulseAggregate,
   SENTIMENT_PULSE_BASE_URL_PLACEHOLDER,
   sentimentPulseUrl,
+  type VulnerableCustomer,
 } from "../src/lib/live-pulse";
+import {
+  deskPeople,
+  engage,
+  followUpEmail,
+  readEngaging,
+  splitDesk,
+  writeEngaging,
+} from "../src/lib/vulnerable-desk";
 
 const failures: string[] = [];
 
@@ -240,6 +249,10 @@ const header = readFileSync(new URL("../src/components/SiteHeader.tsx", import.m
 expect(header.includes('href: "/", label: "Live"'), "the live menu links Live to home");
 expect(header.includes('href: "/live/interactions", label: "Interactions"'), "the live menu links to live interactions");
 expect(header.includes('href: "/live/vulnerable", label: "Vulnerable Customers"'), "the live menu links to vulnerable customers");
+expect(
+  header.includes('href: "/live/vulnerable-customer", label: "Vulnerable Customer"'),
+  "the live menu links to the agent desk",
+);
 const vulnerablePage = readFileSync(new URL("../src/app/live/vulnerable/page.tsx", import.meta.url), "utf8");
 const vulnerableCustomers = readFileSync(new URL("../src/components/VulnerableCustomers.tsx", import.meta.url), "utf8");
 expect(vulnerablePage.includes("<VulnerableCustomers"), "vulnerable customers is its own page");
@@ -249,6 +262,78 @@ expect(vulnerableCustomers.includes('data-testid="vulnerable-customer"'), "each 
 expect(vulnerableCustomers.includes('data-testid="vulnerable-reason"'), "each row shows why they were categorised");
 expect(vulnerableCustomers.includes('data-testid="vulnerable-next-step"'), "each row shows a next step");
 expect(!/listBlobs|incomingtranscripts|processedtranscripts/.test(vulnerableCustomers), "the vulnerable page does not scan blobs");
+const vulnerableCustomerPage = readFileSync(new URL("../src/app/live/vulnerable-customer/page.tsx", import.meta.url), "utf8");
+const vulnerableCustomerDesk = readFileSync(new URL("../src/components/VulnerableCustomerDesk.tsx", import.meta.url), "utf8");
+expect(vulnerableCustomerPage.includes("<VulnerableCustomerDesk"), "the agent desk is its own page");
+expect(vulnerableCustomerPage.includes("Vulnerable Customer"), "the agent desk is titled Vulnerable Customer");
+expect(vulnerableCustomerDesk.includes("loadPulseAggregate"), "the agent desk reads the pulse");
+expect(vulnerableCustomerDesk.includes("followUpEmail"), "email is filled from the selected person");
+expect(vulnerableCustomerDesk.includes("Click to email"), "email is a desk button");
+expect(vulnerableCustomerDesk.includes("Click to call"), "call is a desk button");
+expect(vulnerableCustomerDesk.includes("localStorage"), "engaging stays in the browser");
+expect(vulnerableCustomerDesk.includes('data-testid="agent-engaging"'), "engaging is on the same desk");
+expect(!vulnerableCustomerDesk.includes("not having insurance"), "the draft is not one fixed letter");
+expect(!vulnerableCustomerDesk.includes("mailto:"), "email is not sent");
+expect(!vulnerableCustomerDesk.includes("tel:"), "a call is not placed");
+expect(
+  !/clearPulseResults|clearStoredTranscripts|method:\s*"POST"|azure|sorted-score/i.test(vulnerableCustomerDesk),
+  "the agent desk does not write to Azure or change scoring",
+);
+const insurance = followUpEmail({
+  label: "Customer 1",
+  vulnerability_reason: "The customer mentioned not having insurance and concerns about service fees.",
+  next_step: "Provide additional resources about payment options and assistance programs.",
+});
+const hold = followUpEmail({
+  label: "North Clinic",
+  vulnerability_reason: "Their hours were cut, so they cannot pay.",
+  next_step: "Arrange a short payment hold.",
+});
+const team = followUpEmail({
+  label: "Customer 8",
+  vulnerability_reason: "The caller indicates reliance on Medicare/Medicaid and expresses urgency regarding their medical need.",
+  next_step: "The team could follow up with the caller to confirm they successfully reached the intended location and offer additional support if needed.",
+});
+expect(insurance.body.includes("not having insurance and concerns about service fees."), "the draft uses that person's reason");
+expect(insurance.body.includes("payment options and assistance programs."), "the draft uses that person's next step");
+expect(insurance.body.includes("lower cost and keep close to the same benefits."), "the draft offers lower-cost options with close to the same benefits");
+expect(insurance.body.includes("Hello Customer 1,"), "the draft addresses that person");
+expect(insurance.body !== hold.body, "each person gets their own letter");
+expect(hold.body.includes("Their hours were cut, so they cannot pay."), "another reason stays in that letter");
+expect(hold.body.includes("short payment hold."), "another next step stays in that letter");
+expect(!team.body.includes("We will the team"), "a full next step is not forced into an imperative");
+expect(team.body.includes("follow up with you"), "the next step is written to that person");
+expect(team.body.includes("The caller indicates reliance on Medicare/Medicaid"), "the scored reason stays intact");
+expect(!team.body.includes("You indicates"), "a reason is not rewritten into bad grammar");
+const connect = followUpEmail({
+  label: "Customer 4",
+  vulnerability_reason: "The caller mentioned job hour reductions and challenges with mortgage and other payments, indicating financial difficulties.",
+  next_step: "Offer to connect the caller with financial assistance or counseling services to address their current situation.",
+});
+expect(connect.body.includes("connect you with financial assistance"), "the next step speaks to that person");
+expect(connect.body.includes("your current situation."), "the offer uses your situation");
+const deskRows = deskPeople([
+  row("North Clinic", "older.txt", "2026-11-08T12:00:00.000Z", "Their hours were cut, so they cannot pay.", "Arrange a short payment hold."),
+  row(
+    "fec084c7b04c47cc869867150aee6943_transcript",
+    "fec084c7b04c47cc869867150aee6943_transcript.json",
+    "2026-11-13T08:04:48.741Z",
+    "The customer mentioned not having insurance and concerns about service fees.",
+    "Provide additional resources about payment options and assistance programs.",
+  ),
+]);
+expect(deskRows[0]?.label === "Customer 1" && deskRows[0]?.email === "customer1@example.com", "a file id is Customer 1");
+expect(deskRows[0]?.phone.startsWith("555-010-"), "the phone is a fake 555 number");
+expect(deskRows[1]?.label === "North Clinic" && deskRows[1]?.email === "customer2@example.com", "a name already on the list is kept");
+expect(!deskRows.some((person) => /jane|john smith|maria/i.test(person.label)), "the desk does not invent a personal name");
+const memory = memoryStorage();
+const moved = engage([], { file: deskRows[0].file, channel: "email", movedAt: "2026-11-16T15:00:00.000Z" });
+expect(writeEngaging(memory, moved), "engaging can be stored");
+expect(readEngaging(memory)[0]?.channel === "email", "a refresh reads the same engaging row");
+const split = splitDesk(deskRows, readEngaging(memory));
+expect(split.queue.length === 1 && split.queue[0]?.label === "North Clinic", "email removes that person from the queue");
+expect(split.engaging.length === 1 && split.engaging[0]?.label === "Customer 1", "email shows them in Engaging");
+expect(readEngaging({ getItem: () => "not json" }).length === 0, "a bad engaging record is ignored");
 expect(header.includes('href: "/demo", label: "Demo"'), "demo is a separate link");
 expect(header.includes('href: "/scoring", label: "Score model"'), "score model stays with the demo");
 expect(header.includes("const links = demo"), "score model is not on the live menu");
@@ -283,6 +368,20 @@ expect(!liveOverview.includes("is-single"), "CSAT sits beside NPS");
 expect(!/genii/i.test(liveOverview + livePage), "the live page does not mention Genii");
 expect(!/sample/i.test(liveOverview + livePage), "the live page has no sample disclaimer");
 expect(!/pulse-disclaimer|pulse-sample/.test(liveOverview + livePage), "the live page does not use the sample disclaimer");
+
+function row(person: string, file: string, scoredAt: string, vulnerability_reason: string, next_step: string): VulnerableCustomer {
+  return { person, file, vulnerable: true, vulnerability_reason, next_step, scoredAt };
+}
+
+function memoryStorage(): Pick<Storage, "getItem" | "setItem"> {
+  const data = new Map<string, string>();
+  return {
+    getItem: (key) => data.get(key) ?? null,
+    setItem: (key, value) => {
+      data.set(key, value);
+    },
+  };
+}
 
 function abortError(): Error {
   return Object.assign(new Error("aborted"), { name: "AbortError" });

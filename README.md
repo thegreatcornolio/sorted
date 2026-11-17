@@ -15,11 +15,12 @@ https://sorted.trilogybpo.com
 | `/` and `/live` | Home pulse. NPS and CSAT for scored transcripts, the sentiment mix, the top detractor reasons, and one evidence quote. |
 | `/live/interactions` | Live interactions. Scored files from that pulse, newest first. |
 | `/live/vulnerable` | Vulnerable customers on medical inbound calls. NPS and CSAT stay. Each person, why they were categorised, and a suggested next step. |
+| `/live/vulnerable-customer` | Agent desk for a follow-up. The same people, a queue, a dummy call or email, and an Engaging list kept in the browser. |
 | `/demo` | Scripted demo of the same desk shape: voice, email, and WhatsApp. |
 | `/demo/interactions` | The scripted queue. `/interactions` and `/nadclinic` open this same queue. |
 | `/scoring` | Score model for the demo, including Replay. It sits with the demo menu. |
 
-The live menu is Live, Interactions, and Vulnerable Customers. Demo is a separate link.
+The live menu is Live, Interactions, Vulnerable Customers, and Vulnerable Customer. Demo is a separate link. Vulnerable Customer is the desk an agent opens.
 
 The home NPS dial runs from −100 to +100. It is the share of promoters minus the share of detractors. Promoters are predicted 9–10, passives are 7–8, and detractors are 0–6. Passives stay in the count and are left out of the subtraction. The CSAT dial is the average of the 1–5 estimates. The page draws immediately, shows a short waiting line, and stops the pulse request after a few seconds with a retry. It refreshes every 30 seconds.
 
@@ -30,6 +31,8 @@ These live transcripts have no channel field, and the page does not add one.
 The home page can clear results, and it can clear stored transcripts after a confirmation. See [Clear the pulse](#clear-the-pulse).
 
 `/live/vulnerable` lists people the scorer marked vulnerable. The score JSON includes `vulnerable` (true or false), `vulnerability_reason`, and `next_step`. `vulnerable` is true only for trouble paying, a late payment, or a change in circumstances that means they cannot pay. Saying they cannot afford the service, including “I can't afford that”, is trouble paying. Ordinary price dislike is a high or unfair price when they can still pay, and it is not vulnerable. When `vulnerable` is false, `vulnerability_reason` and `next_step` are empty unless the call shows they cannot afford or cannot pay. When it is true, `vulnerability_reason` is why they were categorised and `next_step` is one suggested next step. Each row is the person, that reason, and that next step. `GET /api/pulse` returns those people as `vulnerable`. A detractor already on the pulse whose reason or quote says they cannot afford the service is listed from that call, with a reason and a next step, even when an older container omitted `vulnerable`. NPS and CSAT stay on the page. Scoring still uses deployment `sorted-score` on `sorted-openai`.
+
+`/live/vulnerable-customer` is the follow-up desk for those same people. It reads `GET /api/pulse` and does not write to Azure. A row keeps the name already on the list. When that name is missing, or is only the file id, the desk labels them Customer 1, Customer 2, and so on, in the same order as the list. Each row gets a dummy email such as `customer1@example.com` and a fake `555` phone number. The queue shows who they are, when they were identified, why they were categorised, and the suggested next step. The agent selects one, then Call or Email. Email fills a draft from that person’s reason and next step and offers payment options that are lower cost and keep close to the same benefits. Click to email does not send mail. Call opens a dummy panel and does not dial. Either action moves that person from the queue into Engaging on the same page. Engaging is stored in the browser under `sorted-vulnerable-customer-engaging` and stays after a refresh. It does not change a score.
 
 ## GitHub Pages
 
@@ -53,6 +56,7 @@ npm run dev
 - Home pulse and `/live`: http://localhost:3000
 - Live interactions: http://localhost:3000/live/interactions
 - Vulnerable customers: http://localhost:3000/live/vulnerable
+- Vulnerable customer desk: http://localhost:3000/live/vulnerable-customer
 - Demo: http://localhost:3000/demo
 - Demo interactions: http://localhost:3000/demo/interactions
 - Score model: http://localhost:3000/scoring
